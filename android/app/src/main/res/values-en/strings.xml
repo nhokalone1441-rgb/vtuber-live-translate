@@ -23,7 +23,7 @@
     <string name="zen_model_restricted">Zen only supports official free models (%s)</string>
 
     <!-- 阶段2: 布局与菜单文案提取 -->
-    <string name="app_name">Luminous Translate</string>
+    <string name="app_name">Movie Translate</string>
     <string name="symbol_swap">⇄</string>
     <string name="symbol_check">✓</string>
     <string name="symbol_star">★</string>
