@@ -22,4 +22,34 @@ class SubtitleStabilizerTest {
         assertEquals("第一句。第二句！第三句？", renders.last().first)
         assertEquals("", renders.last().second)
     }
+
+    @Test
+    fun suppressesStandaloneMoaningSounds() {
+        val renders = mutableListOf<Pair<String, String>>()
+        val stabilizer = SubtitleStabilizer(
+            handler = Handler(Looper.getMainLooper()),
+            maxCurrentChars = 1,
+            onRender = { confirmed, current -> renders += confirmed to current },
+        )
+
+        stabilizer.onFragment("ưm, á, ớ")
+
+        assertEquals("", renders.last().first)
+        assertEquals("", renders.last().second)
+    }
+
+    @Test
+    fun preservesMeaningfulExclamationAndDialogue() {
+        val renders = mutableListOf<Pair<String, String>>()
+        val stabilizer = SubtitleStabilizer(
+            handler = Handler(Looper.getMainLooper()),
+            maxCurrentChars = 1,
+            onRender = { confirmed, current -> renders += confirmed to current },
+        )
+
+        stabilizer.onFragment("Á! Có ai không?")
+
+        assertEquals("Á! Có ai không?", renders.last().first)
+        assertEquals("", renders.last().second)
+    }
 }
