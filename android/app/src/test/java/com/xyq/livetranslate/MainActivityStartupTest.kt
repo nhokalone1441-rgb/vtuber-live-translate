@@ -806,15 +806,24 @@ class MainActivityStartupTest {
         activity.findViewById<View>(R.id.btnTranslateAdvanced).performClick()
         assertEquals(View.VISIBLE, translateAdvanced.visibility)
         val rotate = activity.findViewById<com.google.android.material.slider.Slider>(R.id.slRotate)
+        assertEquals(5f, rotate.stepSize, 0f)
+        assertEquals(505f, rotate.value, 0f)
         assertTrue(rotate.value in rotate.valueFrom..rotate.valueTo)
 
         activity.findViewById<View>(R.id.btnSubtitleAdvanced).performClick()
         assertEquals(View.VISIBLE, subtitleAdvanced.visibility)
         val idle = activity.findViewById<com.google.android.material.slider.Slider>(R.id.slIdle)
+        val maxChars = activity.findViewById<com.google.android.material.slider.Slider>(R.id.slMaxChars)
         assertEquals(100f, idle.stepSize, 0f)
+        assertEquals(1600f, idle.value, 0f)
         assertTrue(idle.value in idle.valueFrom..idle.valueTo)
+        assertEquals(2f, maxChars.stepSize, 0f)
+        assertEquals(42f, maxChars.value, 0f)
+        assertTrue(maxChars.value in maxChars.valueFrom..maxChars.valueTo)
         idle.value = 1700f
         assertEquals(1700f, idle.value, 0f)
+        maxChars.value = 44f
+        assertEquals(44f, maxChars.value, 0f)
     }
 
     @Test
