@@ -52,4 +52,11 @@ class SubtitleStabilizerTest {
         assertEquals("Á! Có ai không?", renders.last().first)
         assertEquals("", renders.last().second)
     }
+
+    @Test
+    fun suppressesBareMoanSyllableButKeepsExclaimedAh() {
+        assertEquals(true, SubtitleSpeechFilter.isNonSpeechVocalization("á"))
+        assertEquals(false, SubtitleSpeechFilter.isNonSpeechVocalization("Á!"))
+        assertEquals(false, SubtitleSpeechFilter.isNonSpeechVocalization("Á! Có ai không?"))
+    }
 }
