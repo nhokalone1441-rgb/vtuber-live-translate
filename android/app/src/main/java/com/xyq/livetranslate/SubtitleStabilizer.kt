@@ -79,6 +79,8 @@ class SubtitleStabilizer(
         for (s in splitSentences(done)) {
             val sentence = s.trim()
             if (sentence.isEmpty()) continue
+            // Live 模型偶尔会把非语言呻吟识别/翻译成拟声词；在字幕落盘前再做一道过滤。
+            if (SubtitleSpeechFilter.isNonSpeechVocalization(sentence)) continue
             // 连续重复：和上一句相同，或整句包含在上一句里 → 丢弃
             if (sentence == lastCommitted || lastCommitted.contains(sentence)) continue
             lastCommitted = sentence
