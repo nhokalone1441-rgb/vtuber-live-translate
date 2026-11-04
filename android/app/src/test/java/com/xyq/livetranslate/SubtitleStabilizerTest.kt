@@ -32,7 +32,7 @@ class SubtitleStabilizerTest {
             onRender = { confirmed, current -> renders += confirmed to current },
         )
 
-        stabilizer.onFragment("ưm, á, ớ")
+        stabilizer.onFragment("um, á, ớ")
 
         assertEquals("", renders.last().first)
         assertEquals("", renders.last().second)
