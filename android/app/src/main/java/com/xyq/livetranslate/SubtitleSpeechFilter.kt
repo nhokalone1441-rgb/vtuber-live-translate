@@ -14,7 +14,7 @@ internal object SubtitleSpeechFilter {
     private val standaloneGroans = setOf("ưm", "ưmmm", "aah", "hmmm", "ooh", "aaa", "唔")
 
     fun isNonSpeechVocalization(text: String): Boolean {
-        val tokens = Regex("""[\\p{L}]+""")
+        val tokens = Regex("""[\p{L}]+""")
             .findAll(text.lowercase())
             .map { it.value }
             .toList()
