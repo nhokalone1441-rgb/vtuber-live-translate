@@ -39,9 +39,9 @@ object SettingsStore {
 
     // ---------- 悬浮窗样式 ----------
 
-    const val DEFAULT_FONT_SP = 16
+    const val DEFAULT_FONT_SP = 18
     const val DEFAULT_BG_OPACITY = 66
-    const val DEFAULT_OVERLAY_LINES = 3
+    const val DEFAULT_OVERLAY_LINES = 2
 
     fun fontSizeSp(c: Context): Int = prefs(c).getInt("fontSp", DEFAULT_FONT_SP)
     fun bgOpacityPct(c: Context): Int = prefs(c).getInt("bgOpacity", DEFAULT_BG_OPACITY)
@@ -59,7 +59,7 @@ object SettingsStore {
     // ---------- 翻译参数 / 断句参数，改动下次开始翻译时生效 ----------
 
     const val DEFAULT_ROTATE_SECONDS = 505         // 服务端约 590s GoAway，提前主动轮换
-    const val DEFAULT_STAB_IDLE_MS = 2500
+    const val DEFAULT_STAB_IDLE_MS = 1600
     const val DEFAULT_STAB_MAX_CHARS = 42
 
     fun echoTargetLanguage(c: Context): Boolean =
