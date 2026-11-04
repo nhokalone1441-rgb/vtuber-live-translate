@@ -56,6 +56,25 @@ class PromptBuilderTest {
     }
 
     @Test
+    fun `prompt prioritizes drama context and preserves adult dialogue tone`() {
+        val scene = DefaultSceneCatalog.resolve(TranslationMode.VIDEO, "general_video")
+        val plan = TranslationPlan(
+            mode = TranslationMode.VIDEO,
+            sourceLanguageCode = "zh",
+            targetLanguageCode = "vi",
+            scenePresetId = scene.id,
+        )
+
+        val prompt = PromptBuilder.build(scene = scene, plan = plan)
+
+        assertTrue(prompt.contains("连续剧情中的角色对白"))
+        assertTrue(prompt.contains("情绪力度与态度"))
+        assertTrue(prompt.contains("不回避、不打码、不擅自净化"))
+        assertTrue(prompt.contains("人物与关系状态"))
+        assertTrue(prompt.contains("避免翻译腔、过度礼貌"))
+    }
+
+    @Test
     fun `video prompt includes analyzed session context without changing scene`() {
         val scene = DefaultSceneCatalog.resolve(TranslationMode.VIDEO, "general_video")
         val plan = TranslationPlan(
