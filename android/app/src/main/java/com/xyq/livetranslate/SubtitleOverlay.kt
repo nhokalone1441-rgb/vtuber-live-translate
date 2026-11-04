@@ -63,6 +63,16 @@ class SubtitleOverlay(
 
     companion object {
         private const val SUBTITLE_HISTORY_LINES = 3
+
+        /** 收起后看得见的那根贴边小蓝条有多宽。 */
+        const val COLLAPSED_BAR_WIDTH_DP = 10
+
+        /** 收起态窗口实际宽度；多出来的触摸区朝屏幕内侧渐隐。 */
+        const val COLLAPSED_TOUCH_WIDTH_DP = 28
+        const val COLLAPSED_HEIGHT_DP = 48
+
+        /** 头部控制按钮触摸区。 */
+        const val CONTROL_SIZE_DP = 28
     }
 
     private val density = context.resources.displayMetrics.density
@@ -585,23 +595,6 @@ class SubtitleOverlay(
         }
     }
 
-    private companion object {
-        /** 收起后看得见的那根贴边小蓝条有多宽。 */
-        const val COLLAPSED_BAR_WIDTH_DP = 10
-
-        /**
-         * 收起态窗口的实际宽度。比蓝条宽出来的部分朝屏幕内侧、画成渐隐的半透明晕：
-         * 看着还是一根细条，但手指有得点。代价是这段宽度会挡住底下 App 的触摸。
-         */
-        const val COLLAPSED_TOUCH_WIDTH_DP = 28
-        const val COLLAPSED_HEIGHT_DP = 48
-
-        /**
-         * 头部三个控制按钮的触摸区。悬浮窗是盖在别人画面上的，按钮越大越碍事：
-         * 28dp 是「看得见、点得中、不抢画面」的折中，别再往 44dp 放大。
-         */
-        const val CONTROL_SIZE_DP = 28
-    }
 }
 
 internal object SubtitleOverlayGeometry {
