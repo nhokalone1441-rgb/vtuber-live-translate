@@ -30,8 +30,8 @@ data class TranslationPlan(
         get() = "${TranslationLanguageCatalog.source(sourceLanguageCode).label} → ${TranslationLanguageCatalog.target(targetLanguageCode).label}"
 
     companion object {
-        const val DEFAULT_SOURCE_LANGUAGE = "auto"
-        const val DEFAULT_TARGET_LANGUAGE = "zh"
+        const val DEFAULT_SOURCE_LANGUAGE = "zh"
+        const val DEFAULT_TARGET_LANGUAGE = "vi"
 
         fun default(mode: TranslationMode): TranslationPlan = TranslationPlan(mode = mode)
 
