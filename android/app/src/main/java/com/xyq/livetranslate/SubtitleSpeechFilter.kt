@@ -8,10 +8,10 @@ package com.xyq.livetranslate
  */
 internal object SubtitleSpeechFilter {
     private val vocalizations = setOf(
-        "ưm", "ưmmm", "hmm", "hmmm", "ah", "aah", "aaa",
+        "ưm", "ưmmm", "um", "umm", "uhm", "uhmm", "hmm", "hmmm", "ah", "aah", "aaa",
         "uh", "uhh", "oh", "ooh", "唔", "嗯", "呃", "啊", "哦", "ớ", "á", "ơ",
     )
-    private val standaloneGroans = setOf("ưm", "ưmmm", "aah", "hmmm", "ooh", "aaa", "唔", "á", "ớ", "ơ")
+    private val standaloneGroans = setOf("ưm", "ưmmm", "um", "umm", "uhm", "uhmm", "aah", "hmmm", "ooh", "aaa", "唔", "á", "ớ", "ơ")
 
     fun isNonSpeechVocalization(text: String): Boolean {
         val tokens = Regex("""[\p{L}]+""")
