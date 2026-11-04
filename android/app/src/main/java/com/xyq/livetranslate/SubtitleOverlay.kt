@@ -137,7 +137,7 @@ class SubtitleOverlay(
         val current = TextView(context).apply {
             setTextColor(Color.WHITE)
             textSize = 18f
-            maxLines = 3
+            maxLines = 2
             ellipsize = TextUtils.TruncateAt.END
             setLineSpacing(0f, 1.08f)
             setShadowLayer(3f, 0f, 1f, Color.argb(120, 0, 0, 0))
@@ -312,19 +312,12 @@ class SubtitleOverlay(
     }
 
     private fun renderLines() {
-        tvConfirmed?.apply {
-            text = latestConfirmed
-            visibility = if (latestConfirmed.isNotEmpty()) {
-                View.VISIBLE
-            } else {
-                View.GONE
-            }
-        }
+        // Movie subtitle mode: never expose the live partial transcript (karaoke effect).
+        // The recognizer may continue streaming internally; only committed translation is visible.
+        tvConfirmed?.visibility = View.GONE
         tvCurrent?.apply {
-            text = when {
-                latestCurrent.isNotEmpty() -> latestCurrent
-                latestConfirmed.isNotEmpty() -> latestConfirmed
-                else -> context.getString(R.string.rt_overlay_waiting_subtitles)
+            text = latestConfirmed.ifEmpty {
+                context.getString(R.string.rt_overlay_waiting_subtitles)
             }
             visibility = View.VISIBLE
         }
