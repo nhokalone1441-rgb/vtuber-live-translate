@@ -49,6 +49,50 @@ class SubtitleOverlayWindowTest {
     }
 
     @Test
+    fun subtitleRowsWrapLongSentencesInsteadOfEllipsizingThem() {
+        val overlay = SubtitleOverlay(appContext(), StatusBus.MODE_VIDEO)
+        try {
+            assertTrue(overlay.show())
+            val rows = overlay.field<MutableList<TextView>>("subtitleRows")
+            assertEquals(3, rows.size)
+            rows.forEach { row ->
+                assertEquals(Int.MAX_VALUE, row.maxLines)
+                assertNull(row.ellipsize)
+            }
+        } finally {
+            overlay.hide()
+        }
+    }
+
+    @Test
+    fun rapidSentencesStayQueuedAndAdvanceInChronologicalPages() {
+        val overlay = SubtitleOverlay(appContext(), StatusBus.MODE_VIDEO)
+        try {
+            assertTrue(overlay.show())
+            overlay.setLines("第一句。第二句！第三句？第四句。", "")
+            val queue = overlay.field<ArrayDeque<String>>("subtitleQueue")
+            val rows = overlay.field<MutableList<TextView>>("subtitleRows")
+
+            assertEquals(4, queue.size)
+            assertEquals("第一句。", rows[0].text.toString())
+            assertEquals("第二句！", rows[1].text.toString())
+            assertEquals("第三句？", rows[2].text.toString())
+            assertEquals("+1", overlay.field<TextView>("backlogLabel").text.toString())
+
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(2500))
+
+            assertEquals(1, queue.size)
+            assertEquals("第四句。", rows[2].text.toString())
+            assertEquals(View.GONE, overlay.field<TextView>("backlogLabel").visibility)
+
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(2500))
+            assertTrue(queue.isEmpty())
+        } finally {
+            overlay.hide()
+        }
+    }
+
+    @Test
     fun collapseCreatesASideHandleWithoutPausingTranslation() {
         val context = appContext()
         val overlay = SubtitleOverlay(context, StatusBus.MODE_MIC)

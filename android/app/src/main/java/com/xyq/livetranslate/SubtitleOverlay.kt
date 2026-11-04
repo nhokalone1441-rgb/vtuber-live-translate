@@ -10,7 +10,8 @@ import android.graphics.PixelFormat
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
-import android.text.TextUtils
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -42,8 +43,12 @@ class SubtitleOverlay(
     private var openButton: ImageView? = null
     private var collapseButton: ImageView? = null
     private val subtitleRows = mutableListOf<TextView>()
-    private val subtitleHistory = ArrayDeque<String>()
+    // Completed sentences are played in chronological pages of three; never overwrite an unread page.
+    private val subtitleQueue = ArrayDeque<String>()
+    private val subtitlePlaybackHandler = Handler(Looper.getMainLooper())
+    private val subtitlePageAdvance = Runnable { advanceSubtitlePage() }
     private var lastProcessedConfirmed = ""
+    private var backlogLabel: TextView? = null
     private var dot: View? = null
     private var lp: WindowManager.LayoutParams? = null
     private var collapsed = false
@@ -86,6 +91,17 @@ class SubtitleOverlay(
             LinearLayout.LayoutParams(dp(8), dp(8)).apply { rightMargin = dp(8) },
         )
         // 状态只由左侧圆点表达；暂停由暂停图标翻成播放图标表达，不再占一行文字。
+        val backlog = TextView(context).apply {
+            textSize = 11f
+            setTextColor(Color.parseColor("#B8C5D6"))
+            visibility = View.GONE
+            setPadding(dp(4), 0, dp(4), 0)
+        }
+        header.addView(backlog, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ))
+        backlogLabel = backlog
         header.addView(
             View(context),
             LinearLayout.LayoutParams(0, dp(1), 1f),
@@ -128,8 +144,9 @@ class SubtitleOverlay(
             val row = TextView(context).apply {
                 setTextColor(if (index == SUBTITLE_HISTORY_LINES - 1) Color.WHITE else Color.parseColor("#B8C5D6"))
                 textSize = 18f
-                maxLines = 1
-                ellipsize = TextUtils.TruncateAt.END
+                // Wrap complete sentences instead of silently truncating long dialogue.
+                maxLines = Int.MAX_VALUE
+                ellipsize = null
                 setShadowLayer(3f, 0f, 1f, Color.argb(120, 0, 0, 0))
                 setPadding(0, if (index == 0) dp(8) else dp(3), 0, 0)
                 visibility = View.GONE
@@ -207,10 +224,12 @@ class SubtitleOverlay(
         expandedY = params.y
         applyStyleNow()
         setControlsVisible(true)
+        if (subtitleQueue.isNotEmpty()) scheduleSubtitlePageAdvance()
         return true
     }
 
     fun hide() {
+        subtitlePlaybackHandler.removeCallbacks(subtitlePageAdvance)
         root?.let { runCatching { wm.removeView(it) } }
         root = null
         panel = null
@@ -220,6 +239,7 @@ class SubtitleOverlay(
         openButton = null
         collapseButton = null
         dot = null
+        backlogLabel = null
         lp = null
         collapsed = false
         controlsVisible = false
@@ -227,22 +247,26 @@ class SubtitleOverlay(
 
     fun setLines(confirmed: String, current: String) {
         val committed = confirmed.trim()
+        var added = 0
         if (committed.isNotEmpty() && committed != lastProcessedConfirmed) {
             lastProcessedConfirmed = committed
             committed.split(Regex("(?<=[。！？!?…～])"))
                 .map(String::trim)
                 .filter(String::isNotEmpty)
                 .forEach { sentence ->
-                    subtitleHistory.addLast(sentence)
-                    while (subtitleHistory.size > SUBTITLE_HISTORY_LINES) {
-                        subtitleHistory.removeFirst()
-                    }
+                    subtitleQueue.addLast(sentence)
+                    added++
                 }
         }
         latestConfirmed = committed
         // Partial text is intentionally ignored: no karaoke/streaming line in movie mode.
         latestCurrent = ""
         renderLines()
+        if (added > 0 && root != null && !collapsed) {
+            // If the new sentence joins the currently visible page, give the reader a fresh full dwell.
+            if (subtitleQueue.size <= SUBTITLE_HISTORY_LINES) scheduleSubtitlePageAdvance()
+            else if (subtitleQueue.size == added) scheduleSubtitlePageAdvance()
+        }
     }
 
     fun setStateColor(colorHex: String) {
@@ -309,18 +333,28 @@ class SubtitleOverlay(
             params.y = expandedY
         }
         applyAppearance()
-        if (!collapsed) setControlsVisible(true)
+        if (collapsed) {
+            subtitlePlaybackHandler.removeCallbacks(subtitlePageAdvance)
+        } else {
+            setControlsVisible(true)
+            if (subtitleQueue.isNotEmpty()) scheduleSubtitlePageAdvance()
+        }
         renderLines()
     }
 
     private fun renderLines() {
-        // Keep exactly the latest three completed subtitle sentences; newest stays at the bottom.
-        val rows = subtitleHistory.toList()
+        // Show the next chronological page; the newest sentence in that page stays at the bottom.
+        val rows = subtitleQueue.take(SUBTITLE_HISTORY_LINES)
         val firstVisibleRow = SUBTITLE_HISTORY_LINES - rows.size
         subtitleRows.forEachIndexed { index, view ->
             val line = rows.getOrNull(index - firstVisibleRow).orEmpty()
             view.text = line
             view.visibility = if (line.isEmpty()) View.GONE else View.VISIBLE
+        }
+        val waiting = (subtitleQueue.size - rows.size).coerceAtLeast(0)
+        backlogLabel?.apply {
+            text = if (waiting > 0) "+$waiting" else ""
+            visibility = if (waiting > 0) View.VISIBLE else View.GONE
         }
         if (rows.isEmpty()) {
             subtitleRows.lastOrNull()?.apply {
@@ -328,6 +362,27 @@ class SubtitleOverlay(
                 visibility = View.VISIBLE
             }
         }
+    }
+
+    /**
+     * Keep each page visible long enough to read. The duration scales with text length
+     * (roughly 18 characters/second), with a floor and ceiling to avoid flicker or runaway delay.
+     */
+    private fun scheduleSubtitlePageAdvance() {
+        if (root == null || collapsed || subtitleQueue.isEmpty()) return
+        subtitlePlaybackHandler.removeCallbacks(subtitlePageAdvance)
+        val visibleCharacters = subtitleQueue.take(SUBTITLE_HISTORY_LINES).sumOf { it.length }
+        val dwellMs = (visibleCharacters * 1000L / 18L).coerceIn(2_400L, 9_000L)
+        subtitlePlaybackHandler.postDelayed(subtitlePageAdvance, dwellMs)
+    }
+
+    private fun advanceSubtitlePage() {
+        if (root == null || collapsed) return
+        repeat(minOf(SUBTITLE_HISTORY_LINES, subtitleQueue.size)) {
+            subtitleQueue.removeFirst()
+        }
+        renderLines()
+        if (subtitleQueue.isNotEmpty()) scheduleSubtitlePageAdvance()
     }
 
     private fun applyStyleNow() {
