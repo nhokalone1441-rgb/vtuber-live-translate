@@ -316,8 +316,9 @@ class SubtitleOverlay(
     private fun renderLines() {
         // Keep exactly the latest three completed subtitle sentences; newest stays at the bottom.
         val rows = subtitleHistory.toList()
+        val firstVisibleRow = SUBTITLE_HISTORY_LINES - rows.size
         subtitleRows.forEachIndexed { index, view ->
-            val line = rows.getOrNull(index).orEmpty()
+            val line = rows.getOrNull(index - firstVisibleRow).orEmpty()
             view.text = line
             view.visibility = if (line.isEmpty()) View.GONE else View.VISIBLE
         }
