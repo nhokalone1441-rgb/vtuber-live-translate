@@ -96,6 +96,26 @@ class SubtitleOverlayWindowTest {
     }
 
     @Test
+    fun longSubtitlePagesAreNotAdvancedBeforeTheirReadingTime() {
+        val overlay = SubtitleOverlay(appContext(), StatusBus.MODE_VIDEO)
+        try {
+            assertTrue(overlay.show())
+            val longSentence = "甲".repeat(59) + "。"
+            overlay.setLines("$longSentence$longSentence$longSentence", "")
+            val queue = overlay.field<ArrayDeque<String>>("subtitleQueue")
+
+            assertEquals(3, queue.size)
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(9_500))
+            assertEquals("A long page must not be forced off-screen before its reading time", 3, queue.size)
+
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_000))
+            assertTrue(queue.isEmpty())
+        } finally {
+            overlay.hide()
+        }
+    }
+
+    @Test
     fun collapseCreatesASideHandleWithoutPausingTranslation() {
         val context = appContext()
         val overlay = SubtitleOverlay(context, StatusBus.MODE_MIC)

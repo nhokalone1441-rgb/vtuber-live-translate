@@ -381,13 +381,13 @@ class SubtitleOverlay(
 
     /**
      * Keep each page visible long enough to read. The duration scales with text length
-     * (roughly 18 characters/second), with a floor and ceiling to avoid flicker or runaway delay.
+     * (roughly 18 characters/second), with a minimum dwell to avoid flicker. Long pages are never rushed.
      */
     private fun scheduleSubtitlePageAdvance() {
         if (root == null || collapsed || subtitleQueue.isEmpty()) return
         subtitlePlaybackHandler.removeCallbacks(subtitlePageAdvance)
         val visibleCharacters = subtitleQueue.take(SUBTITLE_HISTORY_LINES).sumOf { it.length }
-        val dwellMs = (visibleCharacters * 1000L / 18L).coerceIn(2_400L, 9_000L)
+        val dwellMs = (visibleCharacters * 1000L / 18L).coerceAtLeast(2_400L)
         subtitlePlaybackHandler.postDelayed(subtitlePageAdvance, dwellMs)
     }
 
