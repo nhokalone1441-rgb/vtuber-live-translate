@@ -20,6 +20,11 @@ object TranslationPlanStore {
             ?: return defaultPlan(context, mode)
         return runCatching { decodePlan(JSONObject(raw), mode) }
             .getOrElse { defaultPlan(context, mode) }
+            .let { plan ->
+                if (plan.sourceLanguageCode == "auto" && plan.targetLanguageCode == "zh") {
+                    plan.copy(sourceLanguageCode = "zh", targetLanguageCode = "vi").also { saveDraft(context, it) }
+                } else plan
+            }
     }
 
     fun saveDraft(context: Context, plan: TranslationPlan) {
