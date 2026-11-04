@@ -41,8 +41,9 @@ class SubtitleOverlay(
     private var pauseButton: ImageView? = null
     private var openButton: ImageView? = null
     private var collapseButton: ImageView? = null
-    private var tvConfirmed: TextView? = null
-    private var tvCurrent: TextView? = null
+    private val subtitleRows = mutableListOf<TextView>()
+    private val subtitleHistory = ArrayDeque<String>()
+    private var lastProcessedConfirmed = ""
     private var dot: View? = null
     private var lp: WindowManager.LayoutParams? = null
     private var collapsed = false
@@ -54,6 +55,10 @@ class SubtitleOverlay(
     private var latestConfirmed = ""
     private var latestCurrent = ""
     private var controlsVisible = false
+
+    companion object {
+        private const val SUBTITLE_HISTORY_LINES = 3
+    }
 
     private val density = context.resources.displayMetrics.density
     private fun dp(value: Int) = (value * density).roundToInt()
@@ -118,39 +123,26 @@ class SubtitleOverlay(
             ),
         )
 
-        val confirmed = TextView(context).apply {
-            setTextColor(Color.parseColor("#B8C5D6"))
-            textSize = 13f
-            maxLines = 1
-            ellipsize = TextUtils.TruncateAt.END
-            visibility = View.GONE
-            setPadding(0, dp(8), 0, 0)
+        // Three fixed subtitle slots: oldest at top, newest at bottom.
+        repeat(SUBTITLE_HISTORY_LINES) { index ->
+            val row = TextView(context).apply {
+                setTextColor(if (index == SUBTITLE_HISTORY_LINES - 1) Color.WHITE else Color.parseColor("#B8C5D6"))
+                textSize = 18f
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+                setShadowLayer(3f, 0f, 1f, Color.argb(120, 0, 0, 0))
+                setPadding(0, if (index == 0) dp(8) else dp(3), 0, 0)
+                visibility = View.GONE
+            }
+            subtitleRows += row
+            container.addView(
+                row,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ),
+            )
         }
-        container.addView(
-            confirmed,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ),
-        )
-
-        val current = TextView(context).apply {
-            setTextColor(Color.WHITE)
-            textSize = 18f
-            maxLines = 2
-            ellipsize = TextUtils.TruncateAt.END
-            setLineSpacing(0f, 1.08f)
-            setShadowLayer(3f, 0f, 1f, Color.argb(120, 0, 0, 0))
-            setPadding(0, dp(6), 0, 0)
-            text = context.getString(R.string.rt_overlay_waiting_subtitles)
-        }
-        container.addView(
-            current,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-            ),
-        )
 
         val shell = AccentFrameLayout(context, density).apply {
             elevation = dp(8).toFloat()
@@ -209,8 +201,6 @@ class SubtitleOverlay(
         pauseButton = pause
         openButton = open
         collapseButton = collapse
-        tvConfirmed = confirmed
-        tvCurrent = current
         dot = stateDot
         lp = params
         expandedX = params.x
@@ -229,8 +219,6 @@ class SubtitleOverlay(
         pauseButton = null
         openButton = null
         collapseButton = null
-        tvConfirmed = null
-        tvCurrent = null
         dot = null
         lp = null
         collapsed = false
@@ -238,8 +226,22 @@ class SubtitleOverlay(
     }
 
     fun setLines(confirmed: String, current: String) {
-        latestConfirmed = confirmed.trim()
-        latestCurrent = current.trim()
+        val committed = confirmed.trim()
+        if (committed.isNotEmpty() && committed != lastProcessedConfirmed) {
+            lastProcessedConfirmed = committed
+            committed.split(Regex("(?<=[。！？!?…～])"))
+                .map(String::trim)
+                .filter(String::isNotEmpty)
+                .forEach { sentence ->
+                    subtitleHistory.addLast(sentence)
+                    while (subtitleHistory.size > SUBTITLE_HISTORY_LINES) {
+                        subtitleHistory.removeFirst()
+                    }
+                }
+        }
+        latestConfirmed = committed
+        // Partial text is intentionally ignored: no karaoke/streaming line in movie mode.
+        latestCurrent = ""
         renderLines()
     }
 
@@ -312,23 +314,25 @@ class SubtitleOverlay(
     }
 
     private fun renderLines() {
-        // Movie subtitle mode: never expose the live partial transcript (karaoke effect).
-        // The recognizer may continue streaming internally; only committed translation is visible.
-        tvConfirmed?.visibility = View.GONE
-        tvCurrent?.apply {
-            text = latestConfirmed.ifEmpty {
-                context.getString(R.string.rt_overlay_waiting_subtitles)
+        // Keep exactly the latest three completed subtitle sentences; newest stays at the bottom.
+        val rows = subtitleHistory.toList()
+        subtitleRows.forEachIndexed { index, view ->
+            val line = rows.getOrNull(index).orEmpty()
+            view.text = line
+            view.visibility = if (line.isEmpty()) View.GONE else View.VISIBLE
+        }
+        if (rows.isEmpty()) {
+            subtitleRows.lastOrNull()?.apply {
+                text = context.getString(R.string.rt_overlay_waiting_subtitles)
+                visibility = View.VISIBLE
             }
-            visibility = View.VISIBLE
         }
     }
 
     private fun applyStyleNow() {
         appliedStyle = StatusBus.styleVersion.get()
-        val font = SettingsStore.fontSizeSp(context)
-        tvCurrent?.textSize = font.toFloat()
-        tvCurrent?.maxLines = SettingsStore.overlayMaxLines(context)
-        tvConfirmed?.textSize = (font - 4).coerceAtLeast(11).toFloat()
+        val font = SettingsStore.fontSizeSp(context).toFloat()
+        subtitleRows.forEach { it.textSize = font }
         applyAppearance()
     }
 
@@ -362,15 +366,7 @@ class SubtitleOverlay(
                 radius = 22,
             )
             headerRow?.visibility = if (controlsVisible) View.VISIBLE else View.GONE
-            tvConfirmed?.apply {
-                setTextColor(Color.parseColor("#B8C5D6"))
-                setPadding(0, dp(8), 0, 0)
-            }
-            tvCurrent?.apply {
-                setTextColor(Color.WHITE)
-                setShadowLayer(3f, 0f, 1f, Color.argb(120, 0, 0, 0))
-                setPadding(0, dp(6), 0, 0)
-            }
+
             params.width = expandedWidth
             params.height = WindowManager.LayoutParams.WRAP_CONTENT
             params.x = expandedX
