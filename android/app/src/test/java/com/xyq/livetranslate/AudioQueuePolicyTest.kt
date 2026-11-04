@@ -8,7 +8,7 @@ class AudioQueuePolicyTest {
     @Test
     fun replayKeepsQueueWithinBudgetAndPreservesChronologicalOrder() {
         val queue = LinkedBlockingDeque<Int>().apply {
-            (1..30).forEach(::offerLast)
+            (1..30).forEach { offerLast(it) }
         }
 
         prependBounded(queue, (31..40).toList(), maxSize = 30)
@@ -20,7 +20,7 @@ class AudioQueuePolicyTest {
     @Test
     fun replayLargerThanBudgetKeepsOnlyNewestReplayChunks() {
         val queue = LinkedBlockingDeque<Int>().apply {
-            (1..5).forEach(::offerLast)
+            (1..5).forEach { offerLast(it) }
         }
 
         prependBounded(queue, (6..40).toList(), maxSize = 30)
