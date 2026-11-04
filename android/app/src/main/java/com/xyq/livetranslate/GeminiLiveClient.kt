@@ -357,8 +357,14 @@ class GeminiLiveClient(
 
     private fun prependOverlap() {
         synchronized(sentRing) {
-            sentRing.reversed().forEach { queue.offerFirst(it) }
+            // Replayed audio must share the same hard backlog budget as newly captured audio.
+            // Make room by dropping the oldest queued chunks before prepending the 1s overlap.
+            val overlap = sentRing.toList()
             sentRing.clear()
+            synchronized(queue) {
+                while (queue.size + overlap.size > MAX_QUEUE) queue.pollFirst()
+                overlap.asReversed().forEach { queue.offerFirst(it) }
+            }
         }
     }
 
