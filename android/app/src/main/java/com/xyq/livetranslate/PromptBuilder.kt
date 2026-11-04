@@ -53,6 +53,7 @@ object TranslationLanguageCatalog {
     )
     val targets = listOf(
         TranslationLanguage("zh", "中文", R.string.rt_lang_zh),
+        TranslationLanguage("vi", "越南语", R.string.rt_lang_vi),
         TranslationLanguage("zh-Hans", "简体中文", R.string.rt_lang_zh_hans),
         TranslationLanguage("zh-Hant", "繁体中文", R.string.rt_lang_zh_hant),
         TranslationLanguage("en", "英语", R.string.rt_lang_en),
