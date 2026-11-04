@@ -19,6 +19,23 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
+ * Prepends replay audio while keeping the pending queue within its latency budget.
+ * Oldest queued chunks are discarded first so replay + fresh audio never exceed maxSize.
+ */
+internal fun <T> prependBounded(
+    queue: LinkedBlockingDeque<T>,
+    replay: List<T>,
+    maxSize: Int,
+) {
+    require(maxSize > 0)
+    synchronized(queue) {
+        val boundedReplay = replay.takeLast(maxSize)
+        while (queue.size + boundedReplay.size > maxSize) queue.pollFirst()
+        boundedReplay.asReversed().forEach { queue.offerFirst(it) }
+    }
+}
+
+/**
  * Gemini Live Translate WebSocket 客户端。
  * - setup 结构照 docs/02-tech-notes.md，字段位置不能动
  * - 单连接约 590s 被服务端 GoAway 断开：505s 主动轮换 + goAway 消息即时轮换
@@ -356,16 +373,10 @@ class GeminiLiveClient(
     }
 
     private fun prependOverlap() {
-        synchronized(sentRing) {
-            // Replayed audio must share the same hard backlog budget as newly captured audio.
-            // Make room by dropping the oldest queued chunks before prepending the 1s overlap.
-            val overlap = sentRing.toList()
-            sentRing.clear()
-            synchronized(queue) {
-                while (queue.size + overlap.size > MAX_QUEUE) queue.pollFirst()
-                overlap.asReversed().forEach { queue.offerFirst(it) }
-            }
+        val overlap = synchronized(sentRing) {
+            sentRing.toList().also { sentRing.clear() }
         }
+        prependBounded(queue, overlap, MAX_QUEUE)
     }
 
     // ---------- 收发 ----------
