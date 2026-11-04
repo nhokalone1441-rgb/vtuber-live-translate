@@ -84,7 +84,8 @@ class SubtitleStabilizer(
             // 连续重复：和上一句相同，或整句包含在上一句里 → 丢弃
             if (sentence == lastCommitted || lastCommitted.contains(sentence)) continue
             lastCommitted = sentence
-            committed += sentence
+            // Preserve original inter-sentence whitespace when the batch is reassembled.
+            committed += s
         }
         // 一个服务端碎片可能同时包含多句；合并后一次交给下游，不能只留下最后一句。
         if (committed.isNotEmpty()) lastCommitted = committed.joinToString(separator = "")

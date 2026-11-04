@@ -43,9 +43,8 @@ class SubtitleOverlay(
     private var openButton: ImageView? = null
     private var collapseButton: ImageView? = null
     private val subtitleRows = mutableListOf<TextView>()
-    // Completed sentences are played in chronological pages; the last three remain as readable history.
+    // Completed sentences are played in chronological pages of three; never overwrite an unread page.
     private val subtitleQueue = ArrayDeque<String>()
-    private val subtitleHistory = ArrayDeque<String>()
     private val subtitlePlaybackHandler = Handler(Looper.getMainLooper())
     private val subtitlePageAdvance = Runnable { advanceSubtitlePage() }
     private var lastProcessedConfirmed = ""
@@ -354,12 +353,8 @@ class SubtitleOverlay(
     }
 
     private fun renderLines() {
-        // While a backlog exists show its next page; otherwise retain the latest three completed lines.
-        val rows = if (subtitleQueue.isNotEmpty()) {
-            subtitleQueue.take(SUBTITLE_HISTORY_LINES)
-        } else {
-            subtitleHistory.toList()
-        }
+        // Show the next chronological page; the newest sentence in that page stays at the bottom.
+        val rows = subtitleQueue.take(SUBTITLE_HISTORY_LINES)
         val firstVisibleRow = SUBTITLE_HISTORY_LINES - rows.size
         subtitleRows.forEachIndexed { index, view ->
             val line = rows.getOrNull(index - firstVisibleRow).orEmpty()
@@ -394,11 +389,7 @@ class SubtitleOverlay(
     private fun advanceSubtitlePage() {
         if (root == null || collapsed) return
         repeat(minOf(SUBTITLE_HISTORY_LINES, subtitleQueue.size)) {
-            val completed = subtitleQueue.removeFirst()
-            subtitleHistory.addLast(completed)
-            while (subtitleHistory.size > SUBTITLE_HISTORY_LINES) {
-                subtitleHistory.removeFirst()
-            }
+            subtitleQueue.removeFirst()
         }
         renderLines()
         if (subtitleQueue.isNotEmpty()) scheduleSubtitlePageAdvance()

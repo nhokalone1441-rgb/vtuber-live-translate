@@ -87,9 +87,6 @@ class SubtitleOverlayWindowTest {
 
             shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(2500))
             assertTrue(queue.isEmpty())
-            assertEquals("第二句！", rows[0].text.toString())
-            assertEquals("第三句？", rows[1].text.toString())
-            assertEquals("第四句。", rows[2].text.toString())
         } finally {
             overlay.hide()
         }
