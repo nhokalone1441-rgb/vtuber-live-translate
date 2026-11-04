@@ -15,8 +15,7 @@ data class TranslationPlan(
             TranslationLanguageCatalog.sources.any { it.code.equals(code, ignoreCase = true) }
         } ?: DEFAULT_SOURCE_LANGUAGE
         val target = targetLanguageCode.takeIf { code ->
-            code != DEFAULT_SOURCE_LANGUAGE &&
-                TranslationLanguageCatalog.targets.any { it.code.equals(code, ignoreCase = true) }
+            TranslationLanguageCatalog.targets.any { it.code.equals(code, ignoreCase = true) }
         } ?: DEFAULT_TARGET_LANGUAGE
         val sceneId = scenePresetId.trim().ifEmpty { defaultSceneId(mode) }
         return copy(
