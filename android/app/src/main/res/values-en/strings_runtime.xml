@@ -4,6 +4,7 @@
     <!-- Translation language display names: UI only; language codes never change with app locale -->
     <string name="rt_lang_auto">Auto detect</string>
     <string name="rt_lang_zh">Chinese</string>
+    <string name="rt_lang_vi">Vietnamese</string>
     <string name="rt_lang_zh_hans">Simplified Chinese</string>
     <string name="rt_lang_zh_hant">Traditional Chinese</string>
     <string name="rt_lang_en">English</string>
