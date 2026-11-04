@@ -796,6 +796,28 @@ class MainActivityStartupTest {
     }
 
     @Test
+    fun advancedSettingsExpandWithoutCrashingAndExposeValidSliders() = withActivity { activity ->
+        val translateAdvanced = activity.findViewById<View>(R.id.translateAdvanced)
+        val subtitleAdvanced = activity.findViewById<View>(R.id.subtitleAdvanced)
+
+        assertEquals(View.GONE, translateAdvanced.visibility)
+        assertEquals(View.GONE, subtitleAdvanced.visibility)
+
+        activity.findViewById<View>(R.id.btnTranslateAdvanced).performClick()
+        assertEquals(View.VISIBLE, translateAdvanced.visibility)
+        val rotate = activity.findViewById<com.google.android.material.slider.Slider>(R.id.slRotate)
+        assertTrue(rotate.value in rotate.valueFrom..rotate.valueTo)
+
+        activity.findViewById<View>(R.id.btnSubtitleAdvanced).performClick()
+        assertEquals(View.VISIBLE, subtitleAdvanced.visibility)
+        val idle = activity.findViewById<com.google.android.material.slider.Slider>(R.id.slIdle)
+        assertEquals(100f, idle.stepSize, 0f)
+        assertTrue(idle.value in idle.valueFrom..idle.valueTo)
+        idle.value = 1700f
+        assertEquals(1700f, idle.value, 0f)
+    }
+
+    @Test
     fun stage1SettingsViewsAndSecondAiServiceSwitching() = withActivity { activity ->
         // 验证翻译服务控件绑定：申请入口已并入教程对话框，页面只剩教程链接 + 粘贴 + 测试。
         val btnTutorial = activity.findViewById<View>(R.id.btnViewApiKeyTutorial)
