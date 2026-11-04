@@ -51,7 +51,7 @@ class GeminiLiveClient(
         const val MODEL = "models/gemini-3.5-live-translate-preview"
         const val WS_PATH =
             "/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
-        private const val MAX_QUEUE = 200      // 约 20 秒积压上限，超出丢最旧
+        private const val MAX_QUEUE = 30       // 约 3 秒积压上限；断线后优先追实时，不让字幕落后几十秒
         private const val OVERLAP_CHUNKS = 10  // 异常断线重发最近 1 秒
         private const val HANDSHAKE_TIMEOUT_MS = 12_000L // 连上后多久没 setupComplete 就判握手卡死
 
