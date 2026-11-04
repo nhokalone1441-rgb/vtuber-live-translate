@@ -30,7 +30,7 @@ jobs:
           java-version: "17"
 
       - name: Install Android SDK packages
-        run: yes | sdkmanager --licenses && sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+        run: yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses && /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
