@@ -307,8 +307,10 @@ class GeminiLiveClient(
     /** 捕获线程调用：塞入一块 100ms/16k/mono 的 PCM。 */
     fun feedChunk(chunk: ByteArray) {
         if (!running.get()) return
-        if (queue.size >= MAX_QUEUE) queue.pollFirst()
-        queue.offerLast(chunk)
+        synchronized(queue) {
+            if (queue.size >= MAX_QUEUE) queue.pollFirst()
+            queue.offerLast(chunk)
+        }
     }
 
     // ---------- 连接管理 ----------
@@ -458,7 +460,11 @@ class GeminiLiveClient(
             try {
                 val chunk = queue.pollFirst(100, TimeUnit.MILLISECONDS) ?: continue
                 if (!ready) {
-                    queue.offerFirst(chunk)
+                    synchronized(queue) {
+                        // If fresh capture filled the queue while this chunk was in flight,
+                        // keep the newer audio rather than exceeding the latency budget.
+                        if (queue.size < MAX_QUEUE) queue.offerFirst(chunk)
+                    }
                     Thread.sleep(60)
                     continue
                 }
@@ -473,7 +479,9 @@ class GeminiLiveClient(
                     }
                     StatusBus.chunksSent.incrementAndGet()
                 } else {
-                    queue.offerFirst(chunk)
+                    synchronized(queue) {
+                        if (queue.size < MAX_QUEUE) queue.offerFirst(chunk)
+                    }
                     Thread.sleep(120)
                 }
             } catch (e: InterruptedException) {
