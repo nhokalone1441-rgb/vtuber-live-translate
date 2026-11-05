@@ -629,8 +629,10 @@ class GeminiLiveClient(
                 val w = ws
                 if (!inputPaused && w != null && w.send(msg)) {
                     synchronized(sentRing) {
-                        sentRing.addLast(queued)
-                        while (sentRing.size > OVERLAP_CHUNKS) sentRing.removeFirst()
+                        if (!inputPaused) {
+                            sentRing.addLast(queued)
+                            while (sentRing.size > OVERLAP_CHUNKS) sentRing.removeFirst()
+                        }
                     }
                     val sentAt = SystemClock.elapsedRealtime()
                     if (firstAudioSentAtMs == 0L) firstAudioSentAtMs = sentAt
