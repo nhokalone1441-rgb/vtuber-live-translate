@@ -15,7 +15,9 @@ class PcmProcessor(
     private val pending = ShortArray(samplesPerChunk)
     private var pendingLen = 0
 
-    private var phase = 0.0
+    // ext[0] is the previous block's final sample; source sample 0 is ext[1].
+    // Starting at 1.0 prevents a one-sample lag/duplicate at every input-buffer boundary.
+    private var phase = 1.0
     private var lastSample: Short = 0
     private var haveLast = false
 
@@ -38,7 +40,14 @@ class PcmProcessor(
             monoLen = len
         }
 
-        // 2) 线性插值重采样（ext[0] 是上一批的最后一个样本，保证跨批连续）
+        // 16kHz input is already at the target rate; copy it directly. This also avoids
+        // introducing a one-sample boundary shift through the interpolation path.
+        if (step == 1.0) {
+            for (i in 0 until monoLen) emit(mono[i])
+            return
+        }
+
+        // 2) 线性插值重采样（ext[0] 是上一批的最后一个样本，ext[1] 是本批第一个）
         val ext = ShortArray(monoLen + 1)
         ext[0] = if (haveLast) lastSample else mono[0]
         System.arraycopy(mono, 0, ext, 1, monoLen)
