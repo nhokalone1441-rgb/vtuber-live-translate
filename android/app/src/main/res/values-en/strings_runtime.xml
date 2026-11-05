@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="rt_live_translate_capability_note">The live engine auto-detects the spoken language. A fixed source language only hints source transcription; scene prompts and session context are not applied to live translation.</string>
     <!-- General & Actions -->
     <!-- Translation language display names: UI only; language codes never change with app locale -->
     <string name="rt_lang_multi">Multilingual (ZH/JA/EN/KO)</string>
