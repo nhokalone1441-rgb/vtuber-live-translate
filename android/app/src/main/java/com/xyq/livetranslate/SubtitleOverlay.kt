@@ -276,9 +276,12 @@ class SubtitleOverlay(
         renderLines()
     }
 
-    /** There is no live karaoke row in dialogue-block mode. */
+    /** Pause boundary: discard visible and queued blocks so resume cannot show stale dialogue. */
     fun clearLiveLine() {
         latestCurrent = ""
+        historyHandler.removeCallbacks(historyExpiry)
+        subtitleHistory.clear()
+        pendingHistory.clear()
         renderLines()
     }
 
