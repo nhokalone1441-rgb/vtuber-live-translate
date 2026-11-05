@@ -34,6 +34,20 @@ class SubtitleStabilizerTest {
     }
 
     @Test
+    fun englishPeriodCommitsAndKeepsClosingQuoteAttached() {
+        val committed = mutableListOf<String>()
+        val stabilizer = SubtitleStabilizer(
+            handler = Handler(Looper.getMainLooper()),
+            onCommit = { committed += it },
+            onRender = { _, _ -> },
+        )
+
+        stabilizer.onFragment("He said, \"Go now!\" Then he left.")
+
+        assertEquals(listOf("He said, \"Go now!\"", "Then he left."), committed)
+    }
+
+    @Test
     fun completedSentenceMovesToHistoryWhileUnfinishedWordsStayLive() {
         val renders = mutableListOf<Pair<String, String>>()
         val committed = mutableListOf<String>()
