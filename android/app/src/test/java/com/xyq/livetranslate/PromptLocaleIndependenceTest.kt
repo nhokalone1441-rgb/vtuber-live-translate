@@ -58,7 +58,7 @@ class PromptLocaleIndependenceTest {
 
         // 其余成分逐条固定中文
         listOf(
-            "【翻译方向：英语 → 简体中文】",
+            "【翻译方向：英语 → 越南语】",
             "【输入模式：同传】",
             "【场景：会议】",
             "你是实时语音翻译引擎，首要目标是准确传达原话：",
@@ -87,16 +87,16 @@ class PromptLocaleIndependenceTest {
         AppLocale.apply(AppLocale.TAG_EN)
 
         // code 是业务数据，任何界面语言下都必须一致
-        assertEquals("auto", TranslationLanguageCatalog.source("auto").code)
-        assertEquals("zh-Hans", TranslationLanguageCatalog.target("zh-Hans").code)
+        assertEquals("multi", TranslationLanguageCatalog.source("auto").code)
+        assertEquals("vi", TranslationLanguageCatalog.target("vi").code)
 
         // promptLabel 是写进 prompt 的固定中文，不跟随界面语言
-        assertEquals("自动检测", TranslationLanguageCatalog.source("auto").promptLabel)
-        assertEquals("简体中文", TranslationLanguageCatalog.target("zh-Hans").promptLabel)
+        assertEquals("多语言（中文、日语、英语、韩语）", TranslationLanguageCatalog.source("auto").promptLabel)
+        assertEquals("越南语", TranslationLanguageCatalog.target("vi").promptLabel)
 
         // label 是界面展示名，英文界面下应为英文
-        assertEquals("Auto detect", TranslationLanguageCatalog.source("auto").label)
-        assertEquals("Simplified Chinese", TranslationLanguageCatalog.target("zh-Hans").label)
+        assertEquals("Multilingual (ZH/JA/EN/KO)", TranslationLanguageCatalog.source("auto").label)
+        assertEquals("Vietnamese", TranslationLanguageCatalog.target("vi").label)
     }
 
     /** 用户改过的描述是用户数据，任何界面语言下都原样发给模型。 */
