@@ -11,9 +11,13 @@ data class TranslationPlan(
     val scenePresetId: String = defaultSceneId(mode),
 ) {
     fun normalized(): TranslationPlan {
-        val source = sourceLanguageCode.takeIf { code ->
-            TranslationLanguageCatalog.sources.any { it.code.equals(code, ignoreCase = true) }
-        } ?: DEFAULT_SOURCE_LANGUAGE
+        // Migrate legacy automatic-detection plans to the current Multi selector.
+        val source = when {
+            sourceLanguageCode.equals("auto", ignoreCase = true) -> "multi"
+            TranslationLanguageCatalog.sources.any { it.code.equals(sourceLanguageCode, ignoreCase = true) } ->
+                sourceLanguageCode
+            else -> DEFAULT_SOURCE_LANGUAGE
+        }
         val target = targetLanguageCode.takeIf { code ->
             TranslationLanguageCatalog.targets.any { it.code.equals(code, ignoreCase = true) }
         } ?: DEFAULT_TARGET_LANGUAGE
