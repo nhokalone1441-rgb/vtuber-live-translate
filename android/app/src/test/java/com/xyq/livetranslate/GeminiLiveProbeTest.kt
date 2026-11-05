@@ -239,11 +239,10 @@ class GeminiLiveProbeTest {
         ).getJSONObject("setup")
 
         assertEquals(GeminiLiveClient.PROMPTED_MODEL, setup.getString("model"))
-        assertEquals(
-            prompt,
-            setup.getJSONObject("systemInstruction")
-                .getJSONArray("parts").getJSONObject(0).getString("text"),
-        )
+        val systemInstruction = setup.getJSONObject("systemInstruction")
+            .getJSONArray("parts").getJSONObject(0).getString("text")
+        assertTrue(systemInstruction.contains(prompt))
+        assertTrue(systemInstruction.contains("do not filter it as background chatter"))
         assertFalse(setup.getJSONObject("generationConfig").has("translationConfig"))
         assertEquals(
             "ja-JP",
@@ -292,11 +291,10 @@ class GeminiLiveProbeTest {
         val setup = receivedSetup.get()
         assertNotNull(setup)
         assertEquals(GeminiLiveClient.PROMPTED_MODEL, setup!!.getString("model"))
-        assertEquals(
-            "Translate into Vietnamese only.",
-            setup.getJSONObject("systemInstruction")
-                .getJSONArray("parts").getJSONObject(0).getString("text"),
-        )
+        val systemInstruction = setup.getJSONObject("systemInstruction")
+            .getJSONArray("parts").getJSONObject(0).getString("text")
+        assertTrue(systemInstruction.contains("Translate into Vietnamese only."))
+        assertTrue(systemInstruction.contains("Translate every intelligible spoken line"))
     }
 
     private fun assertNotNull(obj: Any?) {
