@@ -59,8 +59,8 @@ object SettingsStore {
     // ---------- 翻译参数 / 断句参数，改动下次开始翻译时生效 ----------
 
     const val DEFAULT_ROTATE_SECONDS = 505         // 服务端约 590s GoAway，提前主动轮换
-    const val DEFAULT_STAB_IDLE_MS = 800
-    const val DEFAULT_STAB_MAX_CHARS = 42
+    const val DEFAULT_STAB_IDLE_MS = 700
+    const val DEFAULT_STAB_MAX_CHARS = 240
 
     fun echoTargetLanguage(c: Context): Boolean =
         prefs(c).getBoolean("advEchoTarget", true)
@@ -84,10 +84,10 @@ object SettingsStore {
     }
 
     fun stabMaxChars(c: Context): Int =
-        prefs(c).getInt("advStabMaxChars", DEFAULT_STAB_MAX_CHARS).coerceIn(20, 80)
+        prefs(c).getInt("advStabMaxChars", DEFAULT_STAB_MAX_CHARS).coerceIn(20, 500)
 
     fun saveStabMaxChars(c: Context, v: Int) {
-        prefs(c).edit().putInt("advStabMaxChars", v.coerceIn(20, 80)).apply()
+        prefs(c).edit().putInt("advStabMaxChars", v.coerceIn(20, 500)).apply()
     }
 
     // ---------- 第二 AI（背景分析 AI） ----------
