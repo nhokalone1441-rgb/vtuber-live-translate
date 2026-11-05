@@ -243,7 +243,7 @@ class GeminiLiveProbeTest {
         val systemInstruction = setup.getJSONObject("systemInstruction")
             .getJSONArray("parts").getJSONObject(0).getString("text")
         assertTrue(systemInstruction.contains(prompt))
-        assertTrue(systemInstruction.contains("do not filter it as background chatter"))
+        assertTrue(systemInstruction.contains("background conversation"))
         assertFalse(setup.getJSONObject("generationConfig").has("translationConfig"))
         assertEquals(
             "ja-JP",
