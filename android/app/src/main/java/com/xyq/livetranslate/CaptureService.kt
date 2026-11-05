@@ -74,7 +74,6 @@ class CaptureService : Service() {
     private val jaTail = StringBuilder()
     private val zhLines = ArrayDeque<String>()
     private val sessionLines = ArrayDeque<String>()
-    private var lastConfirmedZh = ""
     private var stabilizer: SubtitleStabilizer? = null
     private var wakeLock: PowerManager.WakeLock? = null
 
@@ -195,7 +194,6 @@ class CaptureService : Service() {
         StatusBus.captureMode = mode
         zhLines.clear()
         sessionLines.clear()
-        lastConfirmedZh = ""
         StatusBus.startSession(sessionPlan, sceneLabel = sessionSceneLabel)
         val sessionContext = intent.getStringExtra(EXTRA_SESSION_CONTEXT).orEmpty()
         logger = TranscriptLogger(
@@ -216,6 +214,7 @@ class CaptureService : Service() {
             mainHandler,
             idleCommitMs = idleMsSnapshot,
             maxCurrentChars = maxCharsSnapshot,
+            onCommit = { text -> appendConfirmedTranslation(text) },
         ) { confirmed, current ->
             overlay?.maybeReapplyStyle()
             overlay?.setLines(confirmed, current)
@@ -374,16 +373,18 @@ class CaptureService : Service() {
         if (sb.length > 100) sb.delete(0, sb.length - 100)
     }
 
+    /** 每次稳定器确认一段就触发一次；相同台词再次出现也必须保留。 */
+    private fun appendConfirmedTranslation(text: String) {
+        val committed = text.trim()
+        if (committed.isEmpty()) return
+        zhLines.addLast(committed)
+        sessionLines.addLast(committed)
+        logger?.commitTranslation(committed)
+        while (zhLines.size > 4) zhLines.removeFirst()
+        while (sessionLines.size > 80) sessionLines.removeFirst()
+    }
+
     private fun updateZhPanel(confirmed: String, current: String) {
-        val c = confirmed.trim()
-        if (c.isNotEmpty() && c != lastConfirmedZh) {
-            zhLines.addLast(c)
-            sessionLines.addLast(c)
-            logger?.commitTranslation(c)
-            lastConfirmedZh = c
-            while (zhLines.size > 4) zhLines.removeFirst()
-            while (sessionLines.size > 80) sessionLines.removeFirst()
-        }
         StatusBus.updateSessionSubtitles(
             confirmed = sessionLines.toList(),
             current = current,
