@@ -371,6 +371,7 @@ class GeminiLiveClient(
     @Volatile private var firstAudioSentAtMs = 0L
     @Volatile private var lastAudioSentAtMs = 0L
     private val running = AtomicBoolean(false)
+    @Volatile private var inputPaused = false
     private val scheduler = Executors.newSingleThreadScheduledExecutor()
 
     @Volatile private var ws: WebSocket? = null
@@ -381,6 +382,15 @@ class GeminiLiveClient(
     @Volatile private var rotateTask: ScheduledFuture<*>? = null
     @Volatile private var watchdogTask: ScheduledFuture<*>? = null
     private var senderThread: Thread? = null
+
+    /** Pause audio ingress without tearing down the Live session or losing dialogue context. */
+    fun setInputPaused(paused: Boolean) {
+        inputPaused = paused
+        if (paused) {
+            synchronized(queue) { queue.clear() }
+            synchronized(sentRing) { sentRing.clear() }
+        }
+    }
 
     fun start() {
         if (!running.compareAndSet(false, true)) return
@@ -421,7 +431,7 @@ class GeminiLiveClient(
 
     /** 捕获线程调用：塞入一块 100ms/16k/mono 的 PCM。 */
     fun feedChunk(chunk: ByteArray) {
-        if (!running.get()) return
+        if (!running.get() || inputPaused) return
         val queued = QueuedAudio(chunk, SystemClock.elapsedRealtime())
         synchronized(queue) {
             if (queue.size >= MAX_QUEUE) {
@@ -568,9 +578,9 @@ class GeminiLiveClient(
             return
         }
         val sc = o.optJSONObject("serverContent") ?: return
-        sc.optJSONObject("inputTranscription")?.optString("text")
+        if (!inputPaused) sc.optJSONObject("inputTranscription")?.optString("text")
             ?.takeIf { it.isNotEmpty() }?.let { listener.onInputText(it) }
-        sc.optJSONObject("outputTranscription")?.optString("text")
+        if (!inputPaused) sc.optJSONObject("outputTranscription")?.optString("text")
             ?.takeIf { it.isNotEmpty() }?.let { outputText ->
                 val now = SystemClock.elapsedRealtime()
                 if (firstOutputLogged.compareAndSet(false, true) && firstAudioSentAtMs > 0L) {
@@ -599,6 +609,7 @@ class GeminiLiveClient(
         while (running.get()) {
             try {
                 val queued = queue.pollFirst(100, TimeUnit.MILLISECONDS) ?: continue
+                if (inputPaused) continue
                 if (!ready) {
                     synchronized(queue) {
                         // If fresh capture filled the queue while this chunk was in flight,
@@ -616,7 +627,7 @@ class GeminiLiveClient(
                 val msg =
                     "{\"realtimeInput\":{\"audio\":{\"data\":\"$b64\",\"mimeType\":\"audio/pcm;rate=16000\"}}}"
                 val w = ws
-                if (w != null && w.send(msg)) {
+                if (!inputPaused && w != null && w.send(msg)) {
                     synchronized(sentRing) {
                         sentRing.addLast(queued)
                         while (sentRing.size > OVERLAP_CHUNKS) sentRing.removeFirst()
