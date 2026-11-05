@@ -50,6 +50,21 @@ class PcmProcessorTest {
     }
 
     @Test
+    fun resamplingPhaseRemainsContinuousAcrossAudioRecordReads() {
+        val chunks = mutableListOf<ByteArray>()
+        val processor = PcmProcessor(srcRate = 48_000, srcChannels = 1) { chunks += it }
+
+        processor.feed(ShortArray(1_920) { it.toShort() }, 1_920)
+        processor.feed(ShortArray(1_920) { (it + 1_920).toShort() }, 1_920)
+
+        assertEquals(2, chunks.size)
+        assertEquals(0, decodePcm16(chunks[0])[0].toInt())
+        assertEquals(3, decodePcm16(chunks[0])[1].toInt())
+        assertEquals(1_920, decodePcm16(chunks[1])[0].toInt())
+        assertEquals(1_923, decodePcm16(chunks[1])[1].toInt())
+    }
+
+    @Test
     fun resamplesFortyFourPointOneKhzToOneHundredMillisecondsOfPcm() {
         val chunks = mutableListOf<ByteArray>()
         val processor = PcmProcessor(srcRate = 44_100, srcChannels = 1) { chunks += it }
