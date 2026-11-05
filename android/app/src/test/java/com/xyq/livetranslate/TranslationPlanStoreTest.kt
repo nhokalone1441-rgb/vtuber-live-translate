@@ -34,6 +34,8 @@ class TranslationPlanStoreTest {
 
     @Test
     fun supportedLanguagesAreChineseJapaneseEnglishKoreanToVietnameseOnly() {
+        assertEquals("multi", TranslationPlan.default(TranslationMode.VIDEO).sourceLanguageCode)
+        assertEquals("multi", TranslationPlan.default(TranslationMode.INTERPRETATION).sourceLanguageCode)
         assertEquals(listOf("multi", "en", "zh", "ko", "ja"), TranslationLanguageCatalog.sources.map { it.code })
         assertEquals(listOf("vi"), TranslationLanguageCatalog.targets.map { it.code })
 
@@ -52,6 +54,26 @@ class TranslationPlanStoreTest {
         ).normalized()
         assertEquals("multi", multilingual.sourceLanguageCode)
         assertEquals("vi", multilingual.targetLanguageCode)
+    }
+
+    @Test
+    fun legacyAutoDraftMigratesToMultilingualAndVietnamese() {
+        clearStore()
+        val mode = TranslationMode.VIDEO
+        val legacyDraft = JSONObject().apply {
+            put("mode", mode.storageKey)
+            put("sourceLanguageCode", "auto")
+            put("targetLanguageCode", "zh")
+            put("scenePresetId", "anime")
+        }
+        context.getSharedPreferences("translation_plans_v3", Context.MODE_PRIVATE)
+            .edit()
+            .putString("draft_" + mode.storageKey, legacyDraft.toString())
+            .commit()
+
+        val draft = TranslationPlanStore.loadDraft(context, mode)
+        assertEquals("multi", draft.sourceLanguageCode)
+        assertEquals("vi", draft.targetLanguageCode)
     }
 
     @Test
