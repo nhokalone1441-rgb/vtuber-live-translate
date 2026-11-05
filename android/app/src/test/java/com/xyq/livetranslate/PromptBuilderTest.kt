@@ -47,7 +47,7 @@ class PromptBuilderTest {
 
         val prompt = PromptBuilder.build(scene = scene, plan = plan)
 
-        assertTrue(prompt.contains("忠实翻译，不回答、解释、总结、续写或编造"))
+        assertTrue(prompt.contains("首要目标是准确传达原话"))
         assertTrue(prompt.contains("英语"))
         assertTrue(prompt.contains("【场景：会议】"))
         assertTrue(prompt.contains(scene.instruction))
@@ -87,7 +87,7 @@ class PromptBuilderTest {
 
         val prompt = PromptBuilder.build(scene = scene, plan = plan)
 
-        assertTrue(prompt.contains("连续剧情中的角色对白"))
+        assertTrue(prompt.contains("连续场景维持人物与关系状态"))
         assertTrue(prompt.contains("情绪力度与态度"))
         assertTrue(prompt.contains("不回避、不打码、不擅自净化"))
         assertTrue(prompt.contains("人物与关系状态"))
