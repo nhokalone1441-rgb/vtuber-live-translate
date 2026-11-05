@@ -54,6 +54,7 @@ class GeminiLiveClient(
     private val baseUrl: String,
     private val prompt: String,
     private val targetLang: String = TranslationPlan.DEFAULT_TARGET_LANGUAGE,
+    private val sourceLang: String = "multi",
     private val echoTargetLanguage: Boolean = true,
     private val rotateAfterMs: Long = SettingsStore.DEFAULT_ROTATE_SECONDS * 1000L,
     private val listener: Listener,
@@ -102,9 +103,14 @@ class GeminiLiveClient(
         fun buildSetupJson(
             model: String = MODEL,
             targetLang: String = TranslationPlan.DEFAULT_TARGET_LANGUAGE,
+            sourceLang: String = "multi",
             echoTargetLanguage: Boolean = true,
             prompt: String = "",
         ): String {
+            val inputTranscription = JSONObject()
+            sourceLanguageHint(sourceLang)?.let { hint ->
+                inputTranscription.put("languageCodes", JSONArray().put(hint))
+            }
             val setup = JSONObject()
                 .put("model", model)
                 .put(
@@ -116,7 +122,7 @@ class GeminiLiveClient(
                                 .put("echoTargetLanguage", echoTargetLanguage)
                         )
                 )
-                .put("inputAudioTranscription", JSONObject())
+                .put("inputAudioTranscription", inputTranscription)
                 .put("outputAudioTranscription", JSONObject())
             if (prompt.isNotBlank()) {
                 setup.put(
@@ -125,6 +131,15 @@ class GeminiLiveClient(
                 )
             }
             return JSONObject().put("setup", setup).toString()
+        }
+
+        private fun sourceLanguageHint(sourceLang: String): String? = when (sourceLang.lowercase()) {
+            "zh" -> "zh-CN"
+            "ja" -> "ja-JP"
+            "en" -> "en-US"
+            "ko" -> "ko-KR"
+            // Multi deliberately leaves languageCodes empty for automatic detection.
+            else -> null
         }
 
         /**
@@ -475,6 +490,7 @@ class GeminiLiveClient(
         Companion.buildSetupJson(
             model = MODEL,
             targetLang = targetLang,
+            sourceLang = sourceLang,
             echoTargetLanguage = echoTargetLanguage,
             prompt = prompt,
         )
