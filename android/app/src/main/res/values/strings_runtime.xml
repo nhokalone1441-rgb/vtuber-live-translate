@@ -291,5 +291,5 @@
     <string name="rt_live_engine_translate">专用极速翻译 3.5</string>
     <string name="rt_live_engine_prompted">提示词可控 3.8（实验）</string>
     <string name="rt_live_engine_translate_hint">默认引擎：专用语音翻译，优先低延迟；不支持场景提示词。固定语种只提示源语音转写。</string>
-    <string name="rt_live_engine_prompted_hint">实验引擎：会把当前语言与影视场景提示词发送给模型，便于控制自然表达、语气和上下文；翻译质量、延迟与稳定性仍需实测。连接测试只验证握手，不代表翻译效果。</string>
+    <string name="rt_live_engine_prompted_hint">实验引擎：会把当前语言与影视场景提示词发送给模型，便于控制自然表达、语气和上下文。但 3.8 面向语音助手，主动音频可能过滤未被识别为对话对象的影视台词；提示词会要求逐句翻译，但仍需用真实影片验证。延迟与稳定性也待实测。连接测试只验证握手，不代表翻译效果。</string>
 </resources>
