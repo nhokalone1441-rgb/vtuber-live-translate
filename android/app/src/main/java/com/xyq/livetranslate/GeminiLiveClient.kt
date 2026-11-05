@@ -390,12 +390,27 @@ class GeminiLiveClient(
     @Volatile private var watchdogTask: ScheduledFuture<*>? = null
     private var senderThread: Thread? = null
 
-    /** Pause audio ingress without tearing down the Live session or losing dialogue context. */
+    /**
+     * A pause is a hard boundary: invalidate the current socket generation so responses
+     * already being generated from pre-pause audio can never leak after resume.
+     * Resume starts a fresh Live connection before accepting new audio.
+     */
     fun setInputPaused(paused: Boolean) {
+        val wasPaused = inputPaused
         inputPaused = paused
         if (paused) {
             synchronized(queue) { queue.clear() }
             synchronized(sentRing) { sentRing.clear() }
+            if (!wasPaused) {
+                generation.incrementAndGet()
+                ready = false
+                rotateTask?.cancel(false)
+                watchdogTask?.cancel(false)
+                runCatching { ws?.cancel() }
+                ws = null
+            }
+        } else if (wasPaused && running.get()) {
+            runOnScheduler { connect() }
         }
     }
 
