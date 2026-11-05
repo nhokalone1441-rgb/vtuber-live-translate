@@ -62,12 +62,21 @@ class SubtitleStabilizerTest {
         stabilizer.onFragment("Go!")
         shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
         assertEquals("Go!", renders.last().first)
+        val committedAt = SubtitleStabilizer::class.java
+            .getDeclaredField("lastCommittedAtMs")
+            .apply { isAccessible = true }
+            .getLong(stabilizer)
 
         shadowOf(Looper.getMainLooper()).idleFor(1_000, TimeUnit.MILLISECONDS)
         stabilizer.onFragment("Go!")
         shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
 
         assertEquals("Go!", renders.last().first)
+        val repeatedAt = SubtitleStabilizer::class.java
+            .getDeclaredField("lastCommittedAtMs")
+            .apply { isAccessible = true }
+            .getLong(stabilizer)
+        assertEquals(true, repeatedAt > committedAt)
     }
 
     @Test
