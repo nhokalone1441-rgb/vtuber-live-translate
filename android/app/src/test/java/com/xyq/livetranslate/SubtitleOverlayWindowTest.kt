@@ -117,15 +117,15 @@ class SubtitleOverlayWindowTest {
     }
 
     @Test
-    fun historyDurationDefaultsToThreeSecondsAndClampsToTwoThroughFive() {
+    fun overlayDurationDefaultsToOneSecondAndClampsToHalfThroughFiveSeconds() {
         val context = appContext()
         context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit()
-            .remove("subtitleHistoryDisplaySeconds").apply()
-        assertEquals(3, SettingsStore.historyDisplaySeconds(context))
-        SettingsStore.saveHistoryDisplaySeconds(context, 1)
-        assertEquals(2, SettingsStore.historyDisplaySeconds(context))
-        SettingsStore.saveHistoryDisplaySeconds(context, 99)
-        assertEquals(5, SettingsStore.historyDisplaySeconds(context))
+            .remove("overlaySubtitleDisplayMs").apply()
+        assertEquals(1_000, SettingsStore.overlayDisplayMs(context))
+        SettingsStore.saveOverlayDisplayMs(context, 100)
+        assertEquals(500, SettingsStore.overlayDisplayMs(context))
+        SettingsStore.saveOverlayDisplayMs(context, 9_000)
+        assertEquals(5_000, SettingsStore.overlayDisplayMs(context))
         SettingsStore.saveOverlayDisplayMs(context, SettingsStore.DEFAULT_OVERLAY_DISPLAY_MS)
     }
 
