@@ -139,6 +139,8 @@
     <string name="settings_subtitle_advanced">高级断句参数</string>
     <string name="settings_subtitle_idle_default">停顿 1.5 秒后整段转正</string>
     <string name="settings_subtitle_max_chars_default">单段最长 500 字</string>
+<string name="settings_subtitle_history_duration_default">已完成字幕保留 8 秒</string>
+    <string name="settings_subtitle_history_duration">已完成字幕保留 %1$d 秒</string>
     <string name="settings_subtitle_btn_reset">恢复字幕默认设置</string>
     <string name="settings_translate_desc">填写 Gemini API Key 即可开始，设置会自动保存。</string>
     <string name="hint_gemini_api_key">Gemini API Key</string>
