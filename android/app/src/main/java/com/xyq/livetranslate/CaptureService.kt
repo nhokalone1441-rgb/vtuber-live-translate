@@ -19,6 +19,7 @@ import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Handler
+import android.os.SystemClock
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
@@ -264,8 +265,15 @@ class CaptureService : Service() {
                 }
 
                 override fun onOutputText(text: String) {
+                    val receivedAtMs = SystemClock.elapsedRealtime()
                     logger?.logZh(text)
-                    mainHandler.post { stabilizer?.onFragment(text) }
+                    mainHandler.post {
+                        val dispatchMs = SystemClock.elapsedRealtime() - receivedAtMs
+                        if (dispatchMs >= 50L) {
+                            Log.w(TAG, "subtitle_main_thread_dispatch_ms=$dispatchMs")
+                        }
+                        stabilizer?.onFragment(text)
+                    }
                 }
 
             }
