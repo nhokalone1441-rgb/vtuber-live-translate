@@ -1,6 +1,7 @@
 package com.xyq.livetranslate
 
 import android.os.Handler
+import android.os.SystemClock
 
 /**
  * 字幕稳定器：把 Live Translate 的碎片输出整理成「确认行 + 当前行」。
@@ -17,10 +18,14 @@ class SubtitleStabilizer(
 ) {
     companion object {
         private val TERMINATORS = charArrayOf('。', '！', '？', '…', '～', '!', '?')
+        // Only suppress a likely reconnect replay that arrives almost immediately.
+        // Repeated dialogue after a pause is valid content and must not disappear.
+        private const val DUPLICATE_WINDOW_MS = 900L
     }
 
     private val current = StringBuilder()
     private var lastCommitted = ""
+    private var lastCommittedAtMs = 0L
     private val idleCommit = Runnable {
         commit(force = true)
         render()
@@ -39,6 +44,7 @@ class SubtitleStabilizer(
         handler.removeCallbacks(idleCommit)
         current.setLength(0)
         lastCommitted = ""
+        lastCommittedAtMs = 0L
     }
 
     private fun render() = onRender(lastCommitted, current.toString())
@@ -62,13 +68,15 @@ class SubtitleStabilizer(
         if (text.isBlank()) return
 
         val committed = ArrayList<String>()
+        val now = SystemClock.uptimeMillis()
+        val isImmediateReplay = now - lastCommittedAtMs in 0..DUPLICATE_WINDOW_MS
         for (s in splitSentences(text)) {
             val sentence = s.trim()
             if (sentence.isEmpty()) continue
             // Live 模型偶尔会把非语言呻吟识别/翻译成拟声词；在字幕落盘前再做一道过滤。
             if (SubtitleSpeechFilter.isNonSpeechVocalization(sentence)) continue
-            // 连续重复：与上一完整块重复，或被上一完整块包含时丢弃。
-            if (sentence == lastCommitted || lastCommitted.contains(sentence)) continue
+            // 只抑制短时间内完全相同的重连回放；不能用 contains()，也不能永久丢弃重复台词。
+            if (isImmediateReplay && sentence == lastCommitted) continue
             committed += s
         }
 
@@ -76,6 +84,7 @@ class SubtitleStabilizer(
         if (committed.isNotEmpty()) {
             // 保留块内原始标点与空格，一次交给历史区，避免每个短句快速顶走上一句。
             lastCommitted = committed.joinToString(separator = "")
+            lastCommittedAtMs = now
         }
     }
 
