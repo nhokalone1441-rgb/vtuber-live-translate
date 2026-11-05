@@ -817,7 +817,7 @@ class MainActivityStartupTest {
         assertEquals(100f, idle.stepSize, 0f)
         assertEquals(700f, idle.value, 0f)
         assertTrue(idle.value in idle.valueFrom..idle.valueTo)
-        assertEquals(10f, maxChars.stepSize, 0f)
+        assertEquals(2f, maxChars.stepSize, 0f)
         assertEquals(240f, maxChars.value, 0f)
         assertTrue(maxChars.value in maxChars.valueFrom..maxChars.valueTo)
         idle.value = 1700f
