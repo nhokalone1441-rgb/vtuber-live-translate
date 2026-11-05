@@ -43,7 +43,7 @@ class SubtitleOverlay(
     private var openButton: ImageView? = null
     private var collapseButton: ImageView? = null
     private val subtitleRows = mutableListOf<TextView>()
-    // Two finalized dialogue rows plus one live karaoke row.
+    // One three-line subtitle box; queued blocks replace it only after their display interval.
     private data class HistoryEntry(val text: String, val createdAt: Long)
     private val subtitleHistory = ArrayDeque<HistoryEntry>()
     private val pendingHistory = ArrayDeque<String>()
@@ -139,16 +139,16 @@ class SubtitleOverlay(
             ),
         )
 
-        // Three fixed slots: two recent finalized dialogue lines above one live karaoke line.
+        // One wrapped subtitle box: all three visual lines belong to the same dialogue block.
         repeat(SUBTITLE_HISTORY_LINES) { index ->
             val row = TextView(context).apply {
-                setTextColor(if (index == SUBTITLE_HISTORY_LINES - 1) Color.WHITE else Color.parseColor("#B8C5D6"))
+                setTextColor(Color.WHITE)
                 textSize = 18f
-                // Wrap complete sentences instead of silently truncating long dialogue.
-                maxLines = Int.MAX_VALUE
+                // The first TextView is the whole subtitle box, wrapped to at most three lines.
+                maxLines = if (index == 0) 3 else 1
                 ellipsize = null
                 setShadowLayer(3f, 0f, 1f, Color.argb(120, 0, 0, 0))
-                setPadding(0, if (index == 0) dp(8) else dp(3), 0, 0)
+                setPadding(0, if (index == 0) dp(8) else 0, 0, 0)
                 visibility = View.GONE
             }
             subtitleRows += row
@@ -245,17 +245,15 @@ class SubtitleOverlay(
         subtitleHistory.clear()
     }
 
-    /** A commit event is distinct from the rendered text: identical dialogue may be spoken twice. */
+    /** Each commit is a complete dialogue block, not a karaoke sentence/word update. */
     fun addCommittedLine(text: String) {
         val committed = text.trim()
         if (committed.isEmpty()) return
-        // Keep every sentence for its full display interval. When the waiting queue
-        // reaches capacity, coalesce its tail instead of evicting unread dialogue.
         pruneExpiredHistory()
-        if (pendingHistory.isNotEmpty() || subtitleHistory.size >= SUBTITLE_HISTORY_LINES - 1) {
-            enqueuePendingHistory(committed)
-        } else {
+        if (subtitleHistory.isEmpty() && pendingHistory.isEmpty()) {
             subtitleHistory.addLast(HistoryEntry(committed, android.os.SystemClock.uptimeMillis()))
+        } else {
+            enqueuePendingHistory(committed)
         }
         scheduleHistoryExpiry()
         renderLines()
@@ -272,12 +270,12 @@ class SubtitleOverlay(
     }
 
     fun setLines(current: String) {
-        // History is updated by addCommittedLine(); this method only refreshes the live row.
-        latestCurrent = current.trim()
+        // Intentionally do not render partial model fragments; only complete blocks are shown.
+        latestCurrent = ""
         renderLines()
     }
 
-    /** Clear the in-progress karaoke row immediately when playback translation is paused. */
+    /** There is no live karaoke row in dialogue-block mode. */
     fun clearLiveLine() {
         latestCurrent = ""
         renderLines()
@@ -286,8 +284,11 @@ class SubtitleOverlay(
     private fun pruneExpiredHistory() {
         val now = android.os.SystemClock.uptimeMillis()
         val durationMs = SettingsStore.overlayDisplayMs(context).toLong()
-        while (subtitleHistory.isNotEmpty() && subtitleHistory.first().createdAt + durationMs <= now) subtitleHistory.removeFirst()
-        while (subtitleHistory.size < SUBTITLE_HISTORY_LINES - 1 && pendingHistory.isNotEmpty()) {
+        while (subtitleHistory.isNotEmpty() && subtitleHistory.first().createdAt + durationMs <= now) {
+            subtitleHistory.removeFirst()
+        }
+        // Start the next queued block's reading interval only when it becomes visible.
+        if (subtitleHistory.isEmpty() && pendingHistory.isNotEmpty()) {
             subtitleHistory.addLast(HistoryEntry(pendingHistory.removeFirst(), now))
         }
     }
@@ -373,25 +374,18 @@ class SubtitleOverlay(
     }
 
     private fun renderLines() {
-        // The live karaoke row occupies the bottom slot; two finalized dialogue rows stay above it.
-        val rows = SubtitleOverlayPresentation.visibleRows(
-            pending = emptyList(),
-            history = subtitleHistory.map { it.text },
-            current = latestCurrent,
-            maxRows = SUBTITLE_HISTORY_LINES,
-        )
-        val firstVisibleRow = SUBTITLE_HISTORY_LINES - rows.size
+        // Render exactly one completed dialogue block in a single three-line text box.
+        val block = subtitleHistory.lastOrNull()?.text.orEmpty()
         subtitleRows.forEachIndexed { index, view ->
-            val line = rows.getOrNull(index - firstVisibleRow).orEmpty()
-            view.text = line
-            view.setTextColor(
-                if (index == SUBTITLE_HISTORY_LINES - 1 && latestCurrent.isNotEmpty()) {
-                    Color.WHITE
-                } else {
-                    Color.parseColor("#B8C5D6")
-                },
-            )
-            view.visibility = if (line.isEmpty()) View.GONE else View.VISIBLE
+            if (index == 0) {
+                view.text = block
+                view.maxLines = 3
+                view.setTextColor(Color.WHITE)
+                view.visibility = if (block.isEmpty()) View.GONE else View.VISIBLE
+            } else {
+                view.text = ""
+                view.visibility = View.GONE
+            }
         }
     }
 
