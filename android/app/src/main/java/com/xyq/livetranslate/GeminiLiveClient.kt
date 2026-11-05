@@ -124,12 +124,10 @@ class GeminiLiveClient(
                 )
                 .put("inputAudioTranscription", inputTranscription)
                 .put("outputAudioTranscription", JSONObject())
-            if (prompt.isNotBlank()) {
-                setup.put(
-                    "systemInstruction",
-                    JSONObject().put("parts", JSONArray().put(JSONObject().put("text", prompt)))
-                )
-            }
+            // Gemini 3.5 Live Translate explicitly does not support system instructions.
+            // Sending PromptBuilder output here is misleading at best and may make setup fail.
+            // Keep the parameter for source compatibility; prompt customization requires a
+            // different model/API path and must not be claimed as active on this translation model.
             return JSONObject().put("setup", setup).toString()
         }
 
@@ -305,10 +303,14 @@ class GeminiLiveClient(
         rotateTask?.cancel(false)
         watchdogTask?.cancel(false)
         scheduler.shutdownNow()
-        runCatching { ws?.close(1000, "bye") }
+        runCatching { ws?.cancel() }
         ws = null
         ready = false
         senderThread?.interrupt()
+        // Each session owns its OkHttpClient. Release its dispatcher threads and pooled sockets
+        // so repeated start/stop cycles do not accumulate background resources.
+        runCatching { http.dispatcher.executorService.shutdown() }
+        runCatching { http.connectionPool.evictAll() }
         listener.onState("stopped")
     }
 
