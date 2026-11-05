@@ -220,12 +220,12 @@ class GeminiLiveClient(
         // These hints apply to the optional input transcript only. The dedicated Live Translate
         // model still detects the spoken source language itself; this does not lock translation.
         private fun sourceLanguageHints(sourceLang: String): List<String> = when (sourceLang.lowercase()) {
-            "zh" -> listOf("zh-CN")
+            "zh" -> listOf("cmn-Hans-CN")
             "ja" -> listOf("ja-JP")
             "en" -> listOf("en-US")
             "ko" -> listOf("ko-KR")
             // Multi lets transcription recognize code-switching among the four supported sources.
-            "multi", "auto" -> listOf("zh-CN", "ja-JP", "en-US", "ko-KR")
+            "multi", "auto" -> listOf("cmn-Hans-CN", "ja-JP", "en-US", "ko-KR")
             else -> emptyList()
         }
 
