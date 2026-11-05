@@ -79,7 +79,7 @@ class GeminiLiveClient(
          */
         fun buildWebSocketUrl(baseUrl: String, apiKey: String): String {
             val key = SettingsStore.extractFirstApiKey(apiKey)
-            val trimmed = baseUrl.trim().trimEnd('/')
+            val trimmed = baseUrl.trim().trimEnd('/').ifEmpty { SettingsStore.DEFAULT_BASE_URL }
             val httpBase = when {
                 trimmed.startsWith("wss://", ignoreCase = true) -> "https://" + trimmed.substring(6)
                 trimmed.startsWith("ws://", ignoreCase = true) -> "http://" + trimmed.substring(5)
@@ -87,7 +87,7 @@ class GeminiLiveClient(
                 else -> trimmed
             }
             val parsed = httpBase.toHttpUrlOrNull()
-                ?: okhttp3.HttpUrl.Builder().scheme("https").host("generativelanguage.googleapis.com").build()
+                ?: throw IllegalArgumentException("Invalid Live service URL")
             return parsed.newBuilder()
                 .encodedPath(WS_PATH)
                 .removeAllQueryParameters("key")
@@ -361,7 +361,13 @@ class GeminiLiveClient(
             listener.onState("error:未配置 API key")
             return
         }
-        val url = buildWebSocketUrl(baseUrl, key)
+        val url = try {
+            buildWebSocketUrl(baseUrl, key)
+        } catch (error: IllegalArgumentException) {
+            Log.e(TAG, "invalid Live service URL: ${error.message}")
+            listener.onState("error:实时服务地址无效")
+            return
+        }
         val request = Request.Builder().url(url).build()
         ws = http.newWebSocket(request, WsListener(gen))
         armWatchdog(gen)
