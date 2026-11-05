@@ -301,7 +301,10 @@ class CaptureService : Service() {
         captureThread = Thread({
             var readFailed = false
             try {
-                val buf = ShortArray(2048)
+                // Keep AudioRecord reads close to the 40ms network chunk interval.
+                // A fixed 2048-sample read can add 128ms by itself at 16kHz mono.
+                val readSamples = (record.sampleRate * record.channelCount * 40 / 1000).coerceAtLeast(320)
+                val buf = ShortArray(readSamples)
                 while (capturing) {
                     val n = audioRecord?.read(buf, 0, buf.size) ?: break
                     if (n > 0) {
