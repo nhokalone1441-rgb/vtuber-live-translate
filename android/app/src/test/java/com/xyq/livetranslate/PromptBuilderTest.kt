@@ -95,6 +95,34 @@ class PromptBuilderTest {
     }
 
     @Test
+    fun `Chinese to Vietnamese prompt adds colloquial dialogue guidance only for that direction`() {
+        val scene = DefaultSceneCatalog.resolve(TranslationMode.VIDEO, "vtuber")
+        val chineseToVietnamese = PromptBuilder.build(
+            scene = scene,
+            plan = TranslationPlan(
+                mode = TranslationMode.VIDEO,
+                sourceLanguageCode = "zh",
+                targetLanguageCode = "vi",
+                scenePresetId = scene.id,
+            ),
+        )
+        val japaneseToVietnamese = PromptBuilder.build(
+            scene = scene,
+            plan = TranslationPlan(
+                mode = TranslationMode.VIDEO,
+                sourceLanguageCode = "ja",
+                targetLanguageCode = "vi",
+                scenePresetId = scene.id,
+            ),
+        )
+
+        assertTrue(chineseToVietnamese.contains("【中文→越南语口语转换规则】"))
+        assertTrue(chineseToVietnamese.contains("不保留中文语序"))
+        assertTrue(chineseToVietnamese.contains("禁止逐字逐词固定映射"))
+        assertFalse(japaneseToVietnamese.contains("【中文→越南语口语转换规则】"))
+    }
+
+    @Test
     fun `video prompt includes analyzed session context without changing scene`() {
         val scene = DefaultSceneCatalog.resolve(TranslationMode.VIDEO, "general_video")
         val plan = TranslationPlan(
