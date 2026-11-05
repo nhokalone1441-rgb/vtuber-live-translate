@@ -40,29 +40,16 @@ data class TranslationLanguage(
 }
 
 object TranslationLanguageCatalog {
+    // Keep the source list focused on the languages used for film/live content.
+    // Vietnamese is the sole output language to keep the translation path consistent.
     val sources = listOf(
-        TranslationLanguage("ja", "日语", R.string.rt_lang_ja),
-        TranslationLanguage("auto", "自动检测", R.string.rt_lang_auto),
-        TranslationLanguage("en", "英语", R.string.rt_lang_en),
         TranslationLanguage("zh", "中文", R.string.rt_lang_zh),
+        TranslationLanguage("ja", "日语", R.string.rt_lang_ja),
+        TranslationLanguage("en", "英语", R.string.rt_lang_en),
         TranslationLanguage("ko", "韩语", R.string.rt_lang_ko),
-        TranslationLanguage("es", "西班牙语", R.string.rt_lang_es),
-        TranslationLanguage("fr", "法语", R.string.rt_lang_fr),
-        TranslationLanguage("de", "德语", R.string.rt_lang_de),
-        TranslationLanguage("ru", "俄语", R.string.rt_lang_ru),
     )
     val targets = listOf(
-        TranslationLanguage("zh", "中文", R.string.rt_lang_zh),
         TranslationLanguage("vi", "越南语", R.string.rt_lang_vi),
-        TranslationLanguage("zh-Hans", "简体中文", R.string.rt_lang_zh_hans),
-        TranslationLanguage("zh-Hant", "繁体中文", R.string.rt_lang_zh_hant),
-        TranslationLanguage("en", "英语", R.string.rt_lang_en),
-        TranslationLanguage("ja", "日语", R.string.rt_lang_ja),
-        TranslationLanguage("ko", "韩语", R.string.rt_lang_ko),
-        TranslationLanguage("es", "西班牙语", R.string.rt_lang_es),
-        TranslationLanguage("fr", "法语", R.string.rt_lang_fr),
-        TranslationLanguage("de", "德语", R.string.rt_lang_de),
-        TranslationLanguage("ru", "俄语", R.string.rt_lang_ru),
     )
 
     fun source(code: String): TranslationLanguage =
