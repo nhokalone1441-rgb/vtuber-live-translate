@@ -85,15 +85,16 @@ class SubtitleStabilizer(
     private fun commitRemainder() {
         if (current.isEmpty()) return
         val text = current.toString()
+        val startedAtMs = currentStartedAtMs
         current.setLength(0)
         currentStartedAtMs = 0L
-        commitText(text)
+        commitText(text, startedAtMs)
     }
 
-    private fun commitText(text: String) {
+    private fun commitText(text: String, startedAtMs: Long = currentStartedAtMs) {
         if (text.isBlank()) return
         val now = SystemClock.uptimeMillis()
-        val isImmediateReplay = currentStartedAtMs - lastCommittedAtMs in 0..DUPLICATE_WINDOW_MS
+        val isImmediateReplay = startedAtMs - lastCommittedAtMs in 0..DUPLICATE_WINDOW_MS
         val committed = splitSentences(text).map { it.trim() }.filter { sentence ->
             sentence.isNotEmpty() &&
                 !SubtitleSpeechFilter.isNonSpeechVocalization(sentence) &&
