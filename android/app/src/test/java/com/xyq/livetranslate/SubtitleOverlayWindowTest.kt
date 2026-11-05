@@ -97,7 +97,7 @@ class SubtitleOverlayWindowTest {
     }
 
     @Test
-    fun queuedLinesRotateInPairsAndEachPairStaysVisibleForTwoSeconds() {
+    fun queuedDialogueBlocksReplaceTheSingleThreeLineBoxAfterTwoSeconds() {
         val context = appContext()
         SettingsStore.saveOverlayDisplayMs(context, 2_000)
         val overlay = SubtitleOverlay(context, StatusBus.MODE_VIDEO)
@@ -146,8 +146,8 @@ class SubtitleOverlayWindowTest {
 
             val pending = overlay.field<ArrayDeque<String>>("pendingHistory")
             assertEquals(64, pending.size)
-            assertEquals("Chờ 64.\nChờ 65.", pending.last())
-            assertEquals("Chờ 1.", pending.first())
+            assertEquals("Chờ 63.\nChờ 64.\nChờ 65.", pending.last())
+            assertEquals("Đang hiển thị hai.", pending.first())
         } finally {
             overlay.hide()
         }
