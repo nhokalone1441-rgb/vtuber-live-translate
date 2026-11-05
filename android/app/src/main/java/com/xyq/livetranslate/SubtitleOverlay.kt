@@ -367,12 +367,6 @@ class SubtitleOverlay(
             )
             view.visibility = if (line.isEmpty()) View.GONE else View.VISIBLE
         }
-        if (rows.isEmpty()) {
-            subtitleRows.lastOrNull()?.apply {
-                text = context.getString(R.string.rt_overlay_waiting_subtitles)
-                visibility = View.VISIBLE
-            }
-        }
     }
 
     private fun applyStyleNow() {
