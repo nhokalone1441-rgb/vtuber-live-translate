@@ -79,7 +79,7 @@ class AppLocaleTest {
     fun languageChangeDoesNotAlterTranslationPlanLanguages() {
         val interpPlan = TranslationPlan.default(TranslationMode.INTERPRETATION).copy(
             sourceLanguageCode = "ja",
-            targetLanguageCode = "zh",
+            targetLanguageCode = "vi",
         )
         val videoPlan = TranslationPlan.default(TranslationMode.VIDEO).copy(
             sourceLanguageCode = "ja",
@@ -96,9 +96,9 @@ class AppLocaleTest {
         val loadedInterpEn = TranslationPlanStore.loadDraft(context, TranslationMode.INTERPRETATION)
         val loadedVideoEn = TranslationPlanStore.loadDraft(context, TranslationMode.VIDEO)
         assertEquals("ja", loadedInterpEn.sourceLanguageCode)
-        assertEquals("zh", loadedInterpEn.targetLanguageCode)
+        assertEquals("vi", loadedInterpEn.targetLanguageCode)
         assertEquals("ja", loadedVideoEn.sourceLanguageCode)
-        assertEquals("zh", loadedVideoEn.targetLanguageCode)
+        assertEquals("vi", loadedVideoEn.targetLanguageCode)
 
         // 再次切换为 zh-Hans
         AppLocale.saveAndApply(context, AppLocale.TAG_ZH_HANS)
@@ -107,9 +107,9 @@ class AppLocaleTest {
         val loadedInterpZh = TranslationPlanStore.loadDraft(context, TranslationMode.INTERPRETATION)
         val loadedVideoZh = TranslationPlanStore.loadDraft(context, TranslationMode.VIDEO)
         assertEquals("ja", loadedInterpZh.sourceLanguageCode)
-        assertEquals("zh", loadedInterpZh.targetLanguageCode)
+        assertEquals("vi", loadedInterpZh.targetLanguageCode)
         assertEquals("ja", loadedVideoZh.sourceLanguageCode)
-        assertEquals("zh", loadedVideoZh.targetLanguageCode)
+        assertEquals("vi", loadedVideoZh.targetLanguageCode)
     }
 
     @Test
