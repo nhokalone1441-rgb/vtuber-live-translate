@@ -44,7 +44,7 @@ class SubtitleOverlay(
     private var collapseButton: ImageView? = null
     private val subtitleRows = mutableListOf<TextView>()
     // Two finalized dialogue rows plus one live karaoke row.
-    private data class HistoryEntry(val text: String, val expiresAt: Long)
+    private data class HistoryEntry(val text: String, val createdAt: Long)
     private val subtitleHistory = ArrayDeque<HistoryEntry>()
     private val historyHandler = Handler(Looper.getMainLooper())
     private val historyExpiry = Runnable { pruneExpiredHistory(); renderLines(); scheduleHistoryExpiry() }
@@ -249,8 +249,7 @@ class SubtitleOverlay(
             // several sentences; splitting it into one-sentence slots made the history
             // disappear too quickly during natural multi-sentence speech.
             pruneExpiredHistory()
-            val durationMs = SettingsStore.historyDisplaySeconds(context) * 1000L
-            subtitleHistory.addLast(HistoryEntry(committed, android.os.SystemClock.uptimeMillis() + durationMs))
+            subtitleHistory.addLast(HistoryEntry(committed, android.os.SystemClock.uptimeMillis()))
             while (subtitleHistory.size > SUBTITLE_HISTORY_LINES - 1) subtitleHistory.removeFirst()
             scheduleHistoryExpiry()
         }
@@ -261,13 +260,15 @@ class SubtitleOverlay(
 
     private fun pruneExpiredHistory() {
         val now = android.os.SystemClock.uptimeMillis()
-        while (subtitleHistory.isNotEmpty() && subtitleHistory.first().expiresAt <= now) subtitleHistory.removeFirst()
+        val durationMs = SettingsStore.historyDisplaySeconds(context) * 1000L
+        while (subtitleHistory.isNotEmpty() && subtitleHistory.first().createdAt + durationMs <= now) subtitleHistory.removeFirst()
     }
 
     private fun scheduleHistoryExpiry() {
         historyHandler.removeCallbacks(historyExpiry)
         pruneExpiredHistory()
-        val nextExpiry = subtitleHistory.firstOrNull()?.expiresAt ?: return
+        val durationMs = SettingsStore.historyDisplaySeconds(context) * 1000L
+        val nextExpiry = subtitleHistory.firstOrNull()?.let { it.createdAt + durationMs } ?: return
         historyHandler.postAtTime(historyExpiry, nextExpiry)
     }
 
@@ -278,7 +279,11 @@ class SubtitleOverlay(
     }
 
     fun maybeReapplyStyle() {
-        if (appliedStyle != StatusBus.styleVersion.get()) applyStyleNow()
+        if (appliedStyle != StatusBus.styleVersion.get()) {
+            applyStyleNow()
+            scheduleHistoryExpiry()
+            renderLines()
+        }
         val isPaused = StatusBus.paused
         pauseButton?.setImageResource(
             if (isPaused) R.drawable.ic_overlay_play_24 else R.drawable.ic_overlay_pause_24,
