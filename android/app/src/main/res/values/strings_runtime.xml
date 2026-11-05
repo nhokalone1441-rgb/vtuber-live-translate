@@ -2,6 +2,7 @@
 <resources>
     <!-- General & Actions -->
     <!-- 翻译语言显示名：仅用于界面展示，语言 code 不随界面语言变化 -->
+    <string name="rt_lang_multi">多语言（中/日/英/韩）</string>
     <string name="rt_lang_auto">自动检测</string>
     <string name="rt_lang_zh">中文</string>
     <string name="rt_lang_vi">越南语</string>
