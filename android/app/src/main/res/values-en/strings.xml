@@ -139,6 +139,8 @@
     <string name="settings_subtitle_advanced">Advanced segmentation</string>
     <string name="settings_subtitle_idle_default">Finalize the whole utterance after 1.5s silence</string>
     <string name="settings_subtitle_max_chars_default">Max 500 chars per utterance</string>
+<string name="settings_subtitle_history_duration_default">Keep completed subtitles for 8 seconds</string>
+    <string name="settings_subtitle_history_duration">Keep completed subtitles for %1$d seconds</string>
     <string name="settings_subtitle_btn_reset">Restore subtitle default settings</string>
     <string name="settings_translate_desc">Enter Gemini API key to start. Settings are saved automatically.</string>
     <string name="hint_gemini_api_key">Gemini API Key</string>
