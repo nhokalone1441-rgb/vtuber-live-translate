@@ -239,15 +239,13 @@ class SubtitleOverlay(
         val committed = confirmed.trim()
         if (committed.isNotEmpty() && committed != lastProcessedConfirmed) {
             lastProcessedConfirmed = committed
-            committed.split(Regex("(?<=[。！？!?…～])"))
-                .map(String::trim)
-                .filter(String::isNotEmpty)
-                .forEach { sentence ->
-                    subtitleHistory.addLast(sentence)
-                    while (subtitleHistory.size > SUBTITLE_HISTORY_LINES - 1) {
-                        subtitleHistory.removeFirst()
-                    }
-                }
+            // Keep the entire finalized batch as one dialogue block. A batch may contain
+            // several sentences; splitting it into one-sentence slots made the history
+            // disappear too quickly during natural multi-sentence speech.
+            subtitleHistory.addLast(committed)
+            while (subtitleHistory.size > SUBTITLE_HISTORY_LINES - 1) {
+                subtitleHistory.removeFirst()
+            }
         }
         // The live row is never copied into history; finalized lines remain distinct.
         latestCurrent = current.trim()
