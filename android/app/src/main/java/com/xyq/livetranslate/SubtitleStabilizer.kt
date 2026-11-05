@@ -26,6 +26,7 @@ class SubtitleStabilizer(
     private val current = StringBuilder()
     private var lastCommitted = ""
     private var lastCommittedAtMs = 0L
+    private var currentStartedAtMs = 0L
     private val idleCommit = Runnable {
         commit(force = true)
         render()
@@ -33,6 +34,7 @@ class SubtitleStabilizer(
 
     fun onFragment(t: String) {
         if (t.isEmpty()) return
+        if (current.isEmpty()) currentStartedAtMs = SystemClock.uptimeMillis()
         appendWithOverlap(t)
         commit(force = current.length >= maxCurrentChars)
         handler.removeCallbacks(idleCommit)
@@ -45,6 +47,7 @@ class SubtitleStabilizer(
         current.setLength(0)
         lastCommitted = ""
         lastCommittedAtMs = 0L
+        currentStartedAtMs = 0L
     }
 
     private fun render() = onRender(lastCommitted, current.toString())
@@ -69,7 +72,7 @@ class SubtitleStabilizer(
 
         val committed = ArrayList<String>()
         val now = SystemClock.uptimeMillis()
-        val isImmediateReplay = now - lastCommittedAtMs in 0..DUPLICATE_WINDOW_MS
+        val isImmediateReplay = currentStartedAtMs - lastCommittedAtMs in 0..DUPLICATE_WINDOW_MS
         for (s in splitSentences(text)) {
             val sentence = s.trim()
             if (sentence.isEmpty()) continue
@@ -81,6 +84,7 @@ class SubtitleStabilizer(
         }
 
         current.setLength(0)
+        currentStartedAtMs = 0L
         if (committed.isNotEmpty()) {
             // 保留块内原始标点与空格，一次交给历史区，避免每个短句快速顶走上一句。
             lastCommitted = committed.joinToString(separator = "")
