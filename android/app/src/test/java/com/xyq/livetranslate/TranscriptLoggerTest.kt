@@ -26,13 +26,24 @@ class TranscriptLoggerTest {
         logger.commitTranslation("Go!")
         logger.close()
 
-        val item = HistoryStore.list(context).single()
-        val session = HistoryStore.load(context, item.fileName)!!
+        var savedItem: HistoryStore.HistoryItem? = null
+        var savedSession: HistorySession? = null
+        val deadline = System.nanoTime() + 2_000_000_000L
+        while (System.nanoTime() < deadline) {
+            val item = HistoryStore.list(context).singleOrNull()
+            val session = item?.let { HistoryStore.load(context, it.fileName) }
+            if (session?.segments?.size == 2) {
+                savedItem = item
+                savedSession = session
+                break
+            }
+            Thread.sleep(20)
+        }
+
         assertEquals(
             listOf("Go!", "Go!"),
-            session.segments.map { it.translatedText },
+            savedSession?.segments?.map { it.translatedText },
         )
-
-        HistoryStore.delete(context, item.fileName)
+        savedItem?.let { HistoryStore.delete(context, it.fileName) }
     }
 }
