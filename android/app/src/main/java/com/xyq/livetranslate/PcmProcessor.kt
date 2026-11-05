@@ -1,7 +1,7 @@
 package com.xyq.livetranslate
 
 /**
- * PCM16 处理：立体声混单声道 → 线性插值重采样到 16kHz → 切成 100ms（3200 字节）块。
+ * PCM16 处理：立体声混单声道 → 线性插值重采样到 16kHz → 切成 40ms（1280 字节）块。
  * 重采样相位跨缓冲区保持连续。
  */
 class PcmProcessor(
@@ -9,7 +9,7 @@ class PcmProcessor(
     private val srcChannels: Int,
     private val onChunk: (ByteArray) -> Unit,
 ) {
-    private val samplesPerChunk = 1600 // 100ms @ 16kHz
+    private val samplesPerChunk = 640 // 40ms @ 16kHz
     private val step = srcRate.toDouble() / 16000.0
 
     private val pending = ShortArray(samplesPerChunk)
