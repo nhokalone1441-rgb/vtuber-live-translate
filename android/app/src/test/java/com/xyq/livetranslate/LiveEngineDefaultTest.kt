@@ -35,7 +35,7 @@ class LiveEngineDefaultTest {
 
     @Test
     fun existingInstallMigratesToDialogueBlockEngineOnce() {
-        preferences.edit().putString("liveTranslationEngine", GeminiLiveClient.ENGINE_PROMPTED).commit()
+        preferences.edit().putString("liveTranslationEngine", GeminiLiveClient.ENGINE_TRANSLATE).commit()
 
         assertEquals(GeminiLiveClient.ENGINE_PROMPTED, SettingsStore.liveEngine(context))
 
