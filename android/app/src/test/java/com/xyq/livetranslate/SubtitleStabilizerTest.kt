@@ -53,9 +53,11 @@ class SubtitleStabilizerTest {
     @Test
     fun keepsTheSameDialogueWhenItIsRepeatedAfterAPause() {
         val renders = mutableListOf<Pair<String, String>>()
+        val committed = mutableListOf<String>()
         val stabilizer = SubtitleStabilizer(
             handler = Handler(Looper.getMainLooper()),
             idleCommitMs = 100L,
+            onCommit = { committed += it },
             onRender = { confirmed, current -> renders += confirmed to current },
         )
 
@@ -72,6 +74,7 @@ class SubtitleStabilizerTest {
         shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
 
         assertEquals("Go!", renders.last().first)
+        assertEquals(listOf("Go!", "Go!"), committed)
         val repeatedAt = SubtitleStabilizer::class.java
             .getDeclaredField("lastCommittedAtMs")
             .apply { isAccessible = true }
@@ -82,9 +85,11 @@ class SubtitleStabilizerTest {
     @Test
     fun suppressesAnImmediateExactReplayButNotALaterRepeatedLine() {
         val renders = mutableListOf<Pair<String, String>>()
+        val committed = mutableListOf<String>()
         val stabilizer = SubtitleStabilizer(
             handler = Handler(Looper.getMainLooper()),
             idleCommitMs = 100L,
+            onCommit = { committed += it },
             onRender = { confirmed, current -> renders += confirmed to current },
         )
         val committedAtField = SubtitleStabilizer::class.java
@@ -100,14 +105,17 @@ class SubtitleStabilizerTest {
         shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
 
         assertEquals(firstCommitAt, committedAtField.getLong(stabilizer))
+        assertEquals(listOf("Go!"), committed)
     }
 
     @Test
     fun doesNotDropAShortLineJustBecauseItWasContainedInThePreviousLine() {
         val renders = mutableListOf<Pair<String, String>>()
+        val committed = mutableListOf<String>()
         val stabilizer = SubtitleStabilizer(
             handler = Handler(Looper.getMainLooper()),
             idleCommitMs = 100L,
+            onCommit = { committed += it },
             onRender = { confirmed, current -> renders += confirmed to current },
         )
 
@@ -119,6 +127,7 @@ class SubtitleStabilizerTest {
         shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
 
         assertEquals("Know.", renders.last().first)
+        assertEquals(listOf("I don't know.", "Know."), committed)
     }
 
     @Test
