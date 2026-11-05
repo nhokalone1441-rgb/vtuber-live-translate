@@ -72,7 +72,8 @@ class SubtitleOverlayWindowTest {
         try {
             assertTrue(overlay.show())
             val block = "第一句。第二句！第三句？第四句。"
-            overlay.setLines(block, "第五句正在说")
+            overlay.addCommittedLine(block)
+            overlay.setLines("", "第五句正在说")
             val rows = overlay.field<MutableList<TextView>>("subtitleRows")
             val history = overlay.field<ArrayDeque<*>>("subtitleHistory")
 
@@ -87,6 +88,28 @@ class SubtitleOverlayWindowTest {
             shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
             assertEquals(0, history.size)
             assertEquals("第五句正在说", rows[2].text.toString())
+        } finally {
+            overlay.hide()
+            SettingsStore.saveHistoryDisplaySeconds(context, SettingsStore.DEFAULT_HISTORY_DISPLAY_SECONDS)
+        }
+    }
+
+    @Test
+    fun repeatedIdenticalDialogueCreatesTwoSeparateHistoryEntries() {
+        val context = appContext()
+        SettingsStore.saveHistoryDisplaySeconds(context, 5)
+        val overlay = SubtitleOverlay(context, StatusBus.MODE_VIDEO)
+        try {
+            assertTrue(overlay.show())
+            overlay.addCommittedLine("Go!")
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(1))
+            overlay.addCommittedLine("Go!")
+
+            val history = overlay.field<ArrayDeque<*>>("subtitleHistory")
+            val rows = overlay.field<MutableList<TextView>>("subtitleRows")
+            assertEquals(2, history.size)
+            assertEquals("Go!", rows[1].text.toString())
+            assertEquals("Go!", rows[2].text.toString())
         } finally {
             overlay.hide()
             SettingsStore.saveHistoryDisplaySeconds(context, SettingsStore.DEFAULT_HISTORY_DISPLAY_SECONDS)
@@ -115,7 +138,8 @@ class SubtitleOverlayWindowTest {
             assertTrue(overlay.show())
             val longSentence = "甲".repeat(59) + "。"
             val block = "$longSentence$longSentence$longSentence"
-            overlay.setLines(block, "")
+            overlay.addCommittedLine(block)
+            overlay.setLines("", "")
             val history = overlay.field<ArrayDeque<*>>("subtitleHistory")
 
             assertEquals(1, history.size)
