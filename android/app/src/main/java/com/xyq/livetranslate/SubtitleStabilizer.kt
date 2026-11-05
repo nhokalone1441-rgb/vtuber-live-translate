@@ -4,10 +4,9 @@ import android.os.Handler
 import android.os.SystemClock
 
 /**
- * Keeps model context untouched while presenting live karaoke text.
- * Completed sentence prefixes are promoted as soon as punctuation arrives;
- * the unfinished suffix remains in the live row. Silence is only a fallback
- * boundary for languages/dialogue that do not provide punctuation.
+ * Buffers streaming translation fragments into readable dialogue blocks.
+ * No partial text is rendered: a block is committed after a short quiet window,
+ * or at a natural boundary when it grows beyond the three-line subtitle budget.
  */
 class SubtitleStabilizer(
     private val handler: Handler,
@@ -20,6 +19,7 @@ class SubtitleStabilizer(
         private val TERMINATORS = charArrayOf('。', '！', '？', '…', '～', '!', '?', '.')
         private const val CLOSING_MARKS = "\"'”’」』】）)]}"
         private const val DUPLICATE_WINDOW_MS = 900L
+        private const val MIN_CHUNK_BOUNDARY_RATIO = 0.55
     }
 
     private val current = StringBuilder()
@@ -31,16 +31,11 @@ class SubtitleStabilizer(
         render()
     }
 
-    fun onFragment(t: String) {
-        if (t.isEmpty()) return
+    fun onFragment(fragment: String) {
+        if (fragment.isEmpty()) return
         if (current.isEmpty()) currentStartedAtMs = SystemClock.uptimeMillis()
-        appendWithOverlap(t)
-
-        // Punctuation is a display boundary, not an audio/model boundary.
-        // The Live session continues receiving the full uninterrupted audio stream.
-        commitCompletedSentences()
-
-        if (current.length >= maxCurrentChars) commitRemainder()
+        appendWithOverlap(fragment)
+        forceCommitAtNaturalBoundary()
         handler.removeCallbacks(idleCommit)
         if (current.isNotEmpty()) handler.postDelayed(idleCommit, idleCommitMs)
         render()
@@ -52,87 +47,80 @@ class SubtitleStabilizer(
         lastCommitted = ""
         lastCommittedAtMs = 0L
         currentStartedAtMs = 0L
+        render()
     }
 
-    private fun render() = onRender(lastCommitted, current.toString())
+    // Deliberately hide unfinished fragments; the overlay is a subtitle box, not karaoke.
+    private fun render() = onRender(lastCommitted, "")
 
-    private fun appendWithOverlap(frag: String) {
+    private fun appendWithOverlap(fragment: String) {
         val tail = current.toString()
-        var k = minOf(tail.length, frag.length)
-        while (k > 0) {
-            if (tail.regionMatches(tail.length - k, frag, 0, k)) break
-            k--
+        when {
+            tail.isEmpty() -> current.append(fragment)
+            fragment.startsWith(tail) && fragment.length > tail.length -> {
+                // Some Live transcription events are cumulative snapshots, not deltas.
+                current.setLength(0)
+                current.append(fragment)
+            }
+            tail.startsWith(fragment) -> Unit // Ignore a stale/shorter snapshot.
+            else -> {
+                var overlap = minOf(tail.length, fragment.length)
+                while (overlap > 0) {
+                    if (tail.regionMatches(tail.length - overlap, fragment, 0, overlap)) break
+                    overlap--
+                }
+                if (overlap < 2) overlap = 0
+                current.append(fragment, overlap, fragment.length)
+            }
         }
-        if (k < 2) k = 0
-        current.append(frag, k, frag.length)
     }
 
-    private fun commitCompletedSentences() {
+    private fun forceCommitAtNaturalBoundary() {
+        val limit = maxCurrentChars.coerceAtLeast(40)
+        if (current.length < limit) return
+
+        val searchEnd = minOf(limit, current.length)
         var boundary = -1
-        for (i in current.indices) {
-            if (current[i] in TERMINATORS) {
-                boundary = i + 1
+        for (index in 0 until searchEnd) {
+            if (current[index] in TERMINATORS) {
+                boundary = index + 1
                 while (boundary < current.length && current[boundary] in CLOSING_MARKS) boundary++
             }
         }
-        if (boundary <= 0) return
-
-        val completed = current.substring(0, boundary)
-        current.delete(0, boundary)
-        commitText(completed)
-
-        if (current.isEmpty()) {
-            currentStartedAtMs = 0L
+        if (boundary < limit * MIN_CHUNK_BOUNDARY_RATIO) {
+            for (index in searchEnd - 1 downTo (limit * MIN_CHUNK_BOUNDARY_RATIO).toInt()) {
+                if (current[index].isWhitespace()) {
+                    boundary = index + 1
+                    break
+                }
+            }
         }
+        if (boundary <= 0 && current.length < limit * 2) return
+        if (boundary <= 0) boundary = limit
+
+        val startedAt = currentStartedAtMs
+        val block = current.substring(0, boundary).trim()
+        current.delete(0, boundary)
+        currentStartedAtMs = if (current.isEmpty()) 0L else SystemClock.uptimeMillis()
+        commitText(block, startedAt)
     }
 
     private fun commitRemainder() {
         if (current.isEmpty()) return
-        val text = current.toString()
-        val startedAtMs = currentStartedAtMs
+        val text = current.toString().trim()
+        val startedAt = currentStartedAtMs
         current.setLength(0)
         currentStartedAtMs = 0L
-        commitText(text, startedAtMs)
+        commitText(text, startedAt)
     }
 
-    private fun commitText(text: String, startedAtMs: Long = currentStartedAtMs) {
-        if (text.isBlank()) return
+    private fun commitText(text: String, startedAtMs: Long) {
+        if (text.isBlank() || SubtitleSpeechFilter.isNonSpeechVocalization(text)) return
         val now = SystemClock.uptimeMillis()
         val isImmediateReplay = startedAtMs - lastCommittedAtMs in 0..DUPLICATE_WINDOW_MS
-        val committed = splitSentences(text).map { it.trim() }.filter { sentence ->
-            sentence.isNotEmpty() &&
-                !SubtitleSpeechFilter.isNonSpeechVocalization(sentence) &&
-                !(isImmediateReplay && sentence == lastCommitted)
-        }
-        if (committed.isEmpty()) return
-
-        // Commit each completed sentence separately so the overlay can show the
-        // two most recent dialogue lines instead of one multi-sentence paragraph.
-        committed.forEach { sentence ->
-            lastCommitted = sentence
-            lastCommittedAtMs = now
-            onCommit(sentence)
-        }
-    }
-
-    private fun splitSentences(s: String): List<String> {
-        val out = ArrayList<String>()
-        val cur = StringBuilder()
-        var i = 0
-        while (i < s.length) {
-            val ch = s[i]
-            cur.append(ch)
-            if (ch in TERMINATORS) {
-                while (i + 1 < s.length && s[i + 1] in CLOSING_MARKS) {
-                    i++
-                    cur.append(s[i])
-                }
-                out.add(cur.toString())
-                cur.setLength(0)
-            }
-            i++
-        }
-        if (cur.isNotBlank()) out.add(cur.toString())
-        return out
+        if (isImmediateReplay && text == lastCommitted) return
+        lastCommitted = text
+        lastCommittedAtMs = now
+        onCommit(text)
     }
 }
