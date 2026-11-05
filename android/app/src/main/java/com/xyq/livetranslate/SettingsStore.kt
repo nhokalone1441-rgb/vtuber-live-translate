@@ -61,6 +61,15 @@ object SettingsStore {
     const val DEFAULT_ROTATE_SECONDS = 505         // 服务端约 590s GoAway，提前主动轮换
     const val DEFAULT_STAB_IDLE_MS = 1500
     const val DEFAULT_STAB_MAX_CHARS = 500
+    const val DEFAULT_HISTORY_DISPLAY_SECONDS = 8
+
+    fun historyDisplaySeconds(c: Context): Int =
+        prefs(c).getInt("subtitleHistoryDisplaySeconds", DEFAULT_HISTORY_DISPLAY_SECONDS).coerceIn(2, 30)
+
+    fun saveHistoryDisplaySeconds(c: Context, seconds: Int) {
+        prefs(c).edit().putInt("subtitleHistoryDisplaySeconds", seconds.coerceIn(2, 30)).apply()
+        StatusBus.styleVersion.incrementAndGet()
+    }
 
     fun echoTargetLanguage(c: Context): Boolean =
         prefs(c).getBoolean("advEchoTarget", true)
