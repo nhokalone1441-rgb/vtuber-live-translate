@@ -119,11 +119,12 @@ class GeminiLiveProbeTest {
     }
 
     @Test
-    fun multiSourceLeavesLanguageHintOpenForAutomaticDetection() {
+    fun multiSourceProvidesHintsForSupportedLanguages() {
         val setup = JSONObject(
             GeminiLiveClient.buildSetupJson(sourceLang = "multi"),
         ).getJSONObject("setup")
-        assertEquals(0, setup.getJSONObject("inputAudioTranscription").length())
+        val hints = setup.getJSONObject("inputAudioTranscription").getJSONArray("languageCodes")
+        assertEquals(listOf("zh-CN", "ja-JP", "en-US", "ko-KR"), (0 until hints.length()).map { hints.getString(it) })
     }
 
     @Test
