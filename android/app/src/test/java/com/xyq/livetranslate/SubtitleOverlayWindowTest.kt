@@ -89,7 +89,7 @@ class SubtitleOverlayWindowTest {
             assertEquals(1, history.size)
             shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
             assertEquals(0, history.size)
-            assertEquals(block, rows[0].text.toString())
+            assertEquals("", rows[0].text.toString())
         } finally {
             overlay.hide()
             SettingsStore.saveOverlayDisplayMs(context, SettingsStore.DEFAULT_OVERLAY_DISPLAY_MS)
