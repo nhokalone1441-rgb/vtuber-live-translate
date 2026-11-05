@@ -59,8 +59,8 @@ object SettingsStore {
     // ---------- 翻译参数 / 断句参数，改动下次开始翻译时生效 ----------
 
     const val DEFAULT_ROTATE_SECONDS = 505         // 服务端约 590s GoAway，提前主动轮换
-    const val DEFAULT_STAB_IDLE_MS = 700
-    const val DEFAULT_STAB_MAX_CHARS = 240
+    const val DEFAULT_STAB_IDLE_MS = 1500
+    const val DEFAULT_STAB_MAX_CHARS = 500
 
     fun echoTargetLanguage(c: Context): Boolean =
         prefs(c).getBoolean("advEchoTarget", true)
