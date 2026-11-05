@@ -218,7 +218,7 @@ class CaptureService : Service() {
         ) { confirmed, current ->
             overlay?.maybeReapplyStyle()
             overlay?.setLines(confirmed, current)
-            updateZhPanel(confirmed, current)
+            updateZhPanel(current)
         }
         if (useOverlay) {
             mainHandler.post {
@@ -384,7 +384,7 @@ class CaptureService : Service() {
         while (sessionLines.size > 80) sessionLines.removeFirst()
     }
 
-    private fun updateZhPanel(confirmed: String, current: String) {
+    private fun updateZhPanel(current: String) {
         StatusBus.updateSessionSubtitles(
             confirmed = sessionLines.toList(),
             current = current,
