@@ -67,7 +67,7 @@ object SettingsStore {
         prefs(c).getInt("subtitleHistoryDisplaySeconds", DEFAULT_HISTORY_DISPLAY_SECONDS).coerceIn(1, 5)
 
     fun saveHistoryDisplaySeconds(c: Context, seconds: Int) {
-        prefs(c).edit().putInt("subtitleHistoryDisplaySeconds", seconds.coerceIn(2, 30)).apply()
+        prefs(c).edit().putInt("subtitleHistoryDisplaySeconds", seconds.coerceIn(2, 5)).apply()
         StatusBus.styleVersion.incrementAndGet()
     }
 
