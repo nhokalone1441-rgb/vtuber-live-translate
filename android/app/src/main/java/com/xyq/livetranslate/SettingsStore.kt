@@ -61,10 +61,10 @@ object SettingsStore {
     const val DEFAULT_ROTATE_SECONDS = 505         // 服务端约 590s GoAway，提前主动轮换
     const val DEFAULT_STAB_IDLE_MS = 1500
     const val DEFAULT_STAB_MAX_CHARS = 500
-    const val DEFAULT_HISTORY_DISPLAY_SECONDS = 8
+    const val DEFAULT_HISTORY_DISPLAY_SECONDS = 3
 
     fun historyDisplaySeconds(c: Context): Int =
-        prefs(c).getInt("subtitleHistoryDisplaySeconds", DEFAULT_HISTORY_DISPLAY_SECONDS).coerceIn(2, 30)
+        prefs(c).getInt("subtitleHistoryDisplaySeconds", DEFAULT_HISTORY_DISPLAY_SECONDS).coerceIn(1, 15)
 
     fun saveHistoryDisplaySeconds(c: Context, seconds: Int) {
         prefs(c).edit().putInt("subtitleHistoryDisplaySeconds", seconds.coerceIn(2, 30)).apply()
