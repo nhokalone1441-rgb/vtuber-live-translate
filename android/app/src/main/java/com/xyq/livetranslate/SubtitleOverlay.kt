@@ -254,8 +254,8 @@ class SubtitleOverlay(
         renderLines()
     }
 
-    fun setLines(confirmed: String, current: String) {
-        // Confirmed text is a display snapshot only. History is updated by addCommittedLine().
+    fun setLines(current: String) {
+        // History is updated by addCommittedLine(); this method only refreshes the live row.
         latestCurrent = current.trim()
         renderLines()
     }
