@@ -123,11 +123,11 @@ class SubtitleStabilizerTest {
         shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
         shadowOf(Looper.getMainLooper()).idleFor(1_000, TimeUnit.MILLISECONDS)
 
-        stabilizer.onFragment("Know.")
+        stabilizer.onFragment("know.")
         shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
 
-        assertEquals("Know.", renders.last().first)
-        assertEquals(listOf("I don't know.", "Know."), committed)
+        assertEquals("know.", renders.last().first)
+        assertEquals(listOf("I don't know.", "know."), committed)
     }
 
     @Test
