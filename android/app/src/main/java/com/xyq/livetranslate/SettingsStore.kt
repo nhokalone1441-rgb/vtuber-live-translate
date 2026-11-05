@@ -63,12 +63,25 @@ object SettingsStore {
     const val DEFAULT_STAB_MAX_CHARS = 500
     const val DEFAULT_HISTORY_DISPLAY_SECONDS = 3
 
-    const val DEFAULT_LIVE_ENGINE = GeminiLiveClient.ENGINE_TRANSLATE
+    const val DEFAULT_LIVE_ENGINE = GeminiLiveClient.ENGINE_PROMPTED
 
-    fun liveEngine(c: Context): String =
-        prefs(c).getString("liveTranslationEngine", DEFAULT_LIVE_ENGINE)
+    private const val LIVE_ENGINE_PROMPT_MIGRATION_KEY = "liveEnginePromptMigrationV266"
+
+    fun liveEngine(c: Context): String {
+        val settings = prefs(c)
+        // The translation-first request is intentional: migrate existing installs once so the
+        // detailed Vietnamese localization prompt is actually sent to Gemini 3.8 Live.
+        // After this one-time migration, the user may still select the legacy dedicated engine.
+        if (!settings.getBoolean(LIVE_ENGINE_PROMPT_MIGRATION_KEY, false)) {
+            settings.edit()
+                .putString("liveTranslationEngine", GeminiLiveClient.ENGINE_PROMPTED)
+                .putBoolean(LIVE_ENGINE_PROMPT_MIGRATION_KEY, true)
+                .apply()
+        }
+        return settings.getString("liveTranslationEngine", DEFAULT_LIVE_ENGINE)
             ?.takeIf { it == GeminiLiveClient.ENGINE_TRANSLATE || it == GeminiLiveClient.ENGINE_PROMPTED }
             ?: DEFAULT_LIVE_ENGINE
+    }
 
     fun saveLiveEngine(c: Context, engine: String) {
         val safe = if (engine == GeminiLiveClient.ENGINE_PROMPTED) {
