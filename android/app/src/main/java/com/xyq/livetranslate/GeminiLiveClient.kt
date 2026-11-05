@@ -154,9 +154,26 @@ class GeminiLiveClient(
             }
             val generationConfig = JSONObject()
                 .put("responseModalities", JSONArray().put("AUDIO"))
+            // Keep Live generation running while the next audio frames arrive. The default
+            // START_OF_ACTIVITY_INTERRUPTS policy can cancel a translation response when
+            // incoming speech resumes, which is undesirable for a continuous subtitle stream.
+            val realtimeInputConfig = JSONObject()
+                .put(
+                    "automaticActivityDetection",
+                    JSONObject()
+                        .put("disabled", false)
+                        .put("startOfSpeechSensitivity", "START_SENSITIVITY_HIGH")
+                        .put("endOfSpeechSensitivity", "END_SENSITIVITY_HIGH")
+                        .put("prefixPaddingMs", 40)
+                        // Shorten the server's end-of-speech wait without using tiny,
+                        // context-destroying 100–200ms turn boundaries.
+                        .put("silenceDurationMs", 500),
+                )
+                .put("activityHandling", "NO_INTERRUPTION")
             val setup = JSONObject()
                 .put("model", model)
                 .put("generationConfig", generationConfig)
+                .put("realtimeInputConfig", realtimeInputConfig)
                 .put("inputAudioTranscription", inputTranscription)
                 .put("outputAudioTranscription", JSONObject())
 
@@ -603,21 +620,41 @@ class GeminiLiveClient(
             return
         }
         val sc = o.optJSONObject("serverContent") ?: return
-        if (!inputPaused) sc.optJSONObject("inputTranscription")?.optString("text")
-            ?.takeIf { it.isNotEmpty() }?.let { listener.onInputText(it) }
-        if (!inputPaused) sc.optJSONObject("outputTranscription")?.optString("text")
-            ?.takeIf { it.isNotEmpty() }?.let { outputText ->
-                val now = SystemClock.elapsedRealtime()
-                if (firstOutputLogged.compareAndSet(false, true) && firstAudioSentAtMs > 0L) {
-                    Log.i(
-                        TAG,
-                        "first_output_ms=${now - firstAudioSentAtMs} " +
-                            "since_last_audio_ms=${(now - lastAudioSentAtMs).coerceAtLeast(0L)}",
-                    )
-                }
-                listener.onOutputText(outputText)
+        val inputText = sc.optJSONObject("inputTranscription")?.optString("text").orEmpty()
+        val outputText = sc.optJSONObject("outputTranscription")?.optString("text").orEmpty()
+        val modelParts = sc.optJSONObject("modelTurn")?.optJSONArray("parts")
+        var textPartCount = 0
+        var audioPartCount = 0
+        if (modelParts != null) {
+            for (i in 0 until modelParts.length()) {
+                val part = modelParts.optJSONObject(i) ?: continue
+                if (part.optString("text").isNotBlank()) textPartCount++
+                if (part.optJSONObject("inlineData") != null) audioPartCount++
             }
-        // modelTurn 里的翻译语音块直接忽略，不播放
+        }
+        // Content-free diagnostics: prove whether text arrives during playback or only
+        // after the server closes the speech turn, without logging private dialogue.
+        Log.d(
+            TAG,
+            "server_content input_chars=${inputText.length} output_chars=${outputText.length} " +
+                "model_text_parts=$textPartCount model_audio_parts=$audioPartCount " +
+                "generation_complete=${sc.optBoolean("generationComplete")} " +
+                "turn_complete=${sc.optBoolean("turnComplete")} interrupted=${sc.optBoolean("interrupted")} " +
+                "since_last_audio_ms=${if (lastAudioSentAtMs > 0L) (SystemClock.elapsedRealtime() - lastAudioSentAtMs).coerceAtLeast(0L) else -1L}",
+        )
+        if (!inputPaused && inputText.isNotEmpty()) listener.onInputText(inputText)
+        if (!inputPaused && outputText.isNotEmpty()) {
+            val now = SystemClock.elapsedRealtime()
+            if (firstOutputLogged.compareAndSet(false, true) && firstAudioSentAtMs > 0L) {
+                Log.i(
+                    TAG,
+                    "first_output_ms=${now - firstAudioSentAtMs} " +
+                        "since_last_audio_ms=${(now - lastAudioSentAtMs).coerceAtLeast(0L)}",
+                )
+            }
+            listener.onOutputText(outputText)
+        }
+        // Audio payloads are not subtitle text; only the server's output transcription is shown.
     }
 
     private fun buildSetupJson(): String =
