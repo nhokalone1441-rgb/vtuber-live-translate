@@ -21,6 +21,15 @@ class PcmProcessor(
     private var lastSample: Short = 0
     private var haveLast = false
 
+    @Synchronized
+    fun reset() {
+        pendingLen = 0
+        phase = 1.0
+        lastSample = 0
+        haveLast = false
+    }
+
+    @Synchronized
     fun feed(buf: ShortArray, len: Int) {
         // 1) 混单声道
         val mono: ShortArray
