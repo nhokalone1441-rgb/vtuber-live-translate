@@ -65,22 +65,27 @@ class SubtitleOverlayWindowTest {
     }
 
     @Test
-    fun rapidSentencesKeepOnlyTwoRecentDialogueLinesAndOneLiveLine() {
-        val overlay = SubtitleOverlay(appContext(), StatusBus.MODE_VIDEO)
+    fun completedDialogueBlockStaysForConfiguredDurationThenExpires() {
+        val context = appContext()
+        SettingsStore.saveHistoryDisplaySeconds(context, 8)
+        val overlay = SubtitleOverlay(context, StatusBus.MODE_VIDEO)
         try {
             assertTrue(overlay.show())
-            overlay.setLines("第一句。第二句！第三句？第四句。", "第五句正在说")
+            val block = "第一句。第二句！第三句？第四句。"
+            overlay.setLines(block, "第五句正在说")
             val rows = overlay.field<MutableList<TextView>>("subtitleRows")
+            val history = overlay.field<ArrayDeque<*>>("subtitleHistory")
 
-            assertEquals(3, rows.size)
-            assertEquals("第三句？", rows[0].text.toString())
-            assertEquals("第四句。", rows[1].text.toString())
+            assertEquals(1, history.size)
+            assertEquals(block, history.first().let {
+                it!!::class.java.getDeclaredField("text").apply { isAccessible = true }.get(it)
+            })
             assertEquals("第五句正在说", rows[2].text.toString())
 
-            // No delayed page replay: the two finalized lines remain stable while karaoke updates.
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(10_000))
-            assertEquals("第三句？", rows[0].text.toString())
-            assertEquals("第四句。", rows[1].text.toString())
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(7_999))
+            assertEquals(1, history.size)
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
+            assertEquals(0, history.size)
             assertEquals("第五句正在说", rows[2].text.toString())
         } finally {
             overlay.hide()
@@ -88,21 +93,24 @@ class SubtitleOverlayWindowTest {
     }
 
     @Test
-    fun longDialogueLinesStayReadableAndNewestTwoRemainVisible() {
-        val overlay = SubtitleOverlay(appContext(), StatusBus.MODE_VIDEO)
+    fun longDialogueRemainsOneReadableHistoryBlock() {
+        val context = appContext()
+        SettingsStore.saveHistoryDisplaySeconds(context, 30)
+        val overlay = SubtitleOverlay(context, StatusBus.MODE_VIDEO)
         try {
             assertTrue(overlay.show())
             val longSentence = "甲".repeat(59) + "。"
-            overlay.setLines("$longSentence$longSentence$longSentence", "")
-            val rows = overlay.field<MutableList<TextView>>("subtitleRows")
+            val block = "$longSentence$longSentence$longSentence"
+            overlay.setLines(block, "")
+            val history = overlay.field<ArrayDeque<*>>("subtitleHistory")
 
-            assertEquals("", rows[0].text.toString())
-            assertEquals(longSentence, rows[1].text.toString())
-            assertEquals(longSentence, rows[2].text.toString())
+            assertEquals(1, history.size)
+            assertEquals(block, history.first()!!.let {
+                it::class.java.getDeclaredField("text").apply { isAccessible = true }.get(it)
+            })
 
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(10_000))
-            assertEquals(longSentence, rows[1].text.toString())
-            assertEquals(longSentence, rows[2].text.toString())
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(10))
+            assertEquals(1, history.size)
         } finally {
             overlay.hide()
         }
