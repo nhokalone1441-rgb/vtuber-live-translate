@@ -265,6 +265,12 @@ class SubtitleOverlay(
         renderLines()
     }
 
+    /** Clear the in-progress karaoke row immediately when playback translation is paused. */
+    fun clearLiveLine() {
+        latestCurrent = ""
+        renderLines()
+    }
+
     private fun pruneExpiredHistory() {
         val now = android.os.SystemClock.uptimeMillis()
         val durationMs = SettingsStore.overlayDisplayMs(context).toLong()
