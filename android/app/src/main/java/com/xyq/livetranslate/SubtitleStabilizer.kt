@@ -5,8 +5,8 @@ import android.os.Handler
 /**
  * 字幕稳定器：把 Live Translate 的碎片输出整理成「确认行 + 当前行」。
  * - 碎片边界重叠合并（服务端偶尔把结尾几个字重发一遍）
- * - 句末标点切句；与上一句相同/被包含的句子直接丢弃（治复读）
- * - idleCommitMs 无新碎片、或当前行超 maxCurrentChars 时，强制把当前行转正（高级设置可调）
+ * - 标点只作为内容保留，不立即切行；停顿达到 idleCommitMs 后整段转正
+ * - 超过 maxCurrentChars 时才强制转正，避免长对话无限累积（高级设置可调）
  * 所有方法必须在主线程调用（handler 即主线程 Handler）。
  */
 class SubtitleStabilizer(
@@ -55,40 +55,28 @@ class SubtitleStabilizer(
         current.append(frag, k, frag.length)
     }
 
-    /** 把 current 中已到句末的部分切出去转正。force = 无句末标点也全部转正。 */
+    /** 将一个停顿边界内的整段话一次转正；不因句号/问号到来就逐句滚动。 */
     private fun commit(force: Boolean) {
+        if (!force) return
         val text = current.toString()
-        val cut = text.indexOfLast { it in TERMINATORS }
-        val done: String
-        val rest: String
-        when {
-            cut >= 0 -> {
-                done = text.substring(0, cut + 1)
-                rest = text.substring(cut + 1)
-            }
-            force && text.isNotBlank() -> {
-                done = text
-                rest = ""
-            }
-            else -> return
-        }
-        current.setLength(0)
-        current.append(rest)
+        if (text.isBlank()) return
 
         val committed = ArrayList<String>()
-        for (s in splitSentences(done)) {
+        for (s in splitSentences(text)) {
             val sentence = s.trim()
             if (sentence.isEmpty()) continue
             // Live 模型偶尔会把非语言呻吟识别/翻译成拟声词；在字幕落盘前再做一道过滤。
             if (SubtitleSpeechFilter.isNonSpeechVocalization(sentence)) continue
-            // 连续重复：和上一句相同，或整句包含在上一句里 → 丢弃
+            // 连续重复：与上一完整块重复，或被上一完整块包含时丢弃。
             if (sentence == lastCommitted || lastCommitted.contains(sentence)) continue
-            lastCommitted = sentence
-            // Preserve original inter-sentence whitespace when the batch is reassembled.
             committed += s
         }
-        // 一个服务端碎片可能同时包含多句；合并后一次交给下游，不能只留下最后一句。
-        if (committed.isNotEmpty()) lastCommitted = committed.joinToString(separator = "")
+
+        current.setLength(0)
+        if (committed.isNotEmpty()) {
+            // 保留块内原始标点与空格，一次交给历史区，避免每个短句快速顶走上一句。
+            lastCommitted = committed.joinToString(separator = "")
+        }
     }
 
     private fun splitSentences(s: String): List<String> {
