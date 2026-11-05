@@ -58,7 +58,8 @@ class GeminiLiveProbeTest {
     fun buildSetupJsonContainsLiveModelAndAudioModalities() {
         val setupStr = GeminiLiveClient.buildSetupJson(
             model = GeminiLiveClient.MODEL,
-            targetLang = "zh-CN",
+            targetLang = "vi",
+            sourceLang = "en",
             echoTargetLanguage = true,
             prompt = "Live translation prompt",
         )
@@ -75,9 +76,20 @@ class GeminiLiveProbeTest {
         assertEquals("zh-CN", transConfig.getString("targetLanguageCode"))
         assertTrue(transConfig.getBoolean("echoTargetLanguage"))
 
+        val inputTranscription = setup.getJSONObject("inputAudioTranscription")
+        assertEquals("en-US", inputTranscription.getJSONArray("languageCodes").getString(0))
+
         val sysInstruction = setup.getJSONObject("systemInstruction")
         val text = sysInstruction.getJSONArray("parts").getJSONObject(0).getString("text")
         assertEquals("Live translation prompt", text)
+    }
+
+    @Test
+    fun multiSourceLeavesLanguageHintOpenForAutomaticDetection() {
+        val setup = JSONObject(
+            GeminiLiveClient.buildSetupJson(sourceLang = "multi"),
+        ).getJSONObject("setup")
+        assertEquals(0, setup.getJSONObject("inputAudioTranscription").length())
     }
 
     @Test
