@@ -243,6 +243,7 @@ class CaptureService : Service() {
             baseUrl = baseUrlSnapshot,
             prompt = sessionPrompt,
             targetLang = sessionPlan.targetLanguageCode,
+            sourceLang = sessionPlan.sourceLanguageCode,
             echoTargetLanguage = echoSnapshot,
             rotateAfterMs = rotateMsSnapshot,
             listener = object : GeminiLiveClient.Listener {
