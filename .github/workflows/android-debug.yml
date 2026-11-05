@@ -4,7 +4,7 @@ name: Android Debug Build
 # 用于需要下载 APK artifact 或独立复核的场合（2026-09-13 起不再随 push/PR 自动运行）。
 "on":
   push:
-    branches: [main]
+    branches: [main, fix/live-karaoke-subtitle-flow]
   workflow_dispatch:
 
 permissions:
