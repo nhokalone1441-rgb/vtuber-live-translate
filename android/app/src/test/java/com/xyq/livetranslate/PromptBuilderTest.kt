@@ -56,6 +56,26 @@ class PromptBuilderTest {
     }
 
     @Test
+    fun `prompt avoids speaker identification and prioritizes contextual fidelity`() {
+        val scene = DefaultSceneCatalog.resolve(TranslationMode.VIDEO, "vtuber")
+        val plan = TranslationPlan(
+            mode = TranslationMode.VIDEO,
+            sourceLanguageCode = "ja",
+            targetLanguageCode = "vi",
+            scenePresetId = scene.id,
+        )
+
+        val prompt = PromptBuilder.build(scene = scene, plan = plan)
+
+        assertTrue(prompt.contains("不进行说话人识别、身份追踪或性别判断"))
+        assertTrue(prompt.contains("结合当前会话前后文理解代词、省略、指代、双关、俚语和网络梗"))
+        assertTrue(prompt.contains("不得为了简短而漏译或改写原意"))
+        assertTrue(prompt.contains("优先使用自然、中性的"))
+        assertFalse(prompt.contains("根据声音特征和连续对话判断每位说话者的性别"))
+        assertFalse(prompt.contains("分别追踪每位说话者"))
+    }
+
+    @Test
     fun `prompt prioritizes drama context and preserves adult dialogue tone`() {
         val scene = DefaultSceneCatalog.resolve(TranslationMode.VIDEO, "general_video")
         val plan = TranslationPlan(
