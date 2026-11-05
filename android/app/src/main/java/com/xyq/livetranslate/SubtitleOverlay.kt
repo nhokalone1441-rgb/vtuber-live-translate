@@ -249,8 +249,8 @@ class SubtitleOverlay(
     fun addCommittedLine(text: String) {
         val committed = text.trim()
         if (committed.isEmpty()) return
-        // Keep every sentence for its full display interval. If several completed
-        // sentences arrive together, queue overflow rather than evicting unread lines.
+        // Keep every sentence for its full display interval. When the waiting queue
+        // reaches capacity, coalesce its tail instead of evicting unread dialogue.
         pruneExpiredHistory()
         if (pendingHistory.isNotEmpty() || subtitleHistory.size >= SUBTITLE_HISTORY_LINES - 1) {
             enqueuePendingHistory(committed)
