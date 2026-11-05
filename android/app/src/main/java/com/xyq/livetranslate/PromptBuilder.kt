@@ -43,7 +43,7 @@ object TranslationLanguageCatalog {
     // Keep the source list focused on the languages used for film/live content.
     // Vietnamese is the sole output language to keep the translation path consistent.
     val sources = listOf(
-        TranslationLanguage("multi", "多语言自动识别", R.string.rt_lang_multi),
+        TranslationLanguage("multi", "多语言（中文、日语、英语、韩语）", R.string.rt_lang_multi),
         TranslationLanguage("zh", "中文", R.string.rt_lang_zh),
         TranslationLanguage("ja", "日语", R.string.rt_lang_ja),
         TranslationLanguage("en", "英语", R.string.rt_lang_en),
@@ -55,7 +55,8 @@ object TranslationLanguageCatalog {
 
     fun source(code: String): TranslationLanguage =
         sources.firstOrNull { it.code.equals(code, ignoreCase = true) }
-            ?: TranslationLanguage(code, code, 0)
+            ?: if (code.equals("auto", ignoreCase = true)) sources.first()
+            else TranslationLanguage(code, code, 0)
 
     fun target(code: String): TranslationLanguage =
         targets.firstOrNull { it.code.equals(code, ignoreCase = true) }
