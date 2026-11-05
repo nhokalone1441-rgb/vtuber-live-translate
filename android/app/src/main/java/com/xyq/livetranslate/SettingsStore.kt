@@ -59,7 +59,7 @@ object SettingsStore {
     // ---------- 翻译参数 / 断句参数，改动下次开始翻译时生效 ----------
 
     const val DEFAULT_ROTATE_SECONDS = 505         // 服务端约 590s GoAway，提前主动轮换
-    const val DEFAULT_STAB_IDLE_MS = 450
+    const val DEFAULT_STAB_IDLE_MS = 500
     const val DEFAULT_STAB_MAX_CHARS = 120
     const val DEFAULT_HISTORY_DISPLAY_SECONDS = 3
 
