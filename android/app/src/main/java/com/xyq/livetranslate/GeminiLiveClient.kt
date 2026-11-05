@@ -1,5 +1,6 @@
 package com.xyq.livetranslate
 
+import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -257,8 +258,14 @@ class GeminiLiveClient(
         .connectTimeout(15, TimeUnit.SECONDS)
         .build()
 
-    private val queue = LinkedBlockingDeque<ByteArray>()
-    private val sentRing = ArrayDeque<ByteArray>()
+    private data class QueuedAudio(val bytes: ByteArray, val enqueuedAtMs: Long)
+
+    private val queue = LinkedBlockingDeque<QueuedAudio>()
+    private val sentRing = ArrayDeque<QueuedAudio>()
+    private val droppedAudioChunks = AtomicInteger(0)
+    private val firstOutputLogged = AtomicBoolean(false)
+    @Volatile private var firstAudioSentAtMs = 0L
+    @Volatile private var lastAudioSentAtMs = 0L
     private val running = AtomicBoolean(false)
     private val scheduler = Executors.newSingleThreadScheduledExecutor()
 
@@ -307,9 +314,16 @@ class GeminiLiveClient(
     /** 捕获线程调用：塞入一块 100ms/16k/mono 的 PCM。 */
     fun feedChunk(chunk: ByteArray) {
         if (!running.get()) return
+        val queued = QueuedAudio(chunk, SystemClock.elapsedRealtime())
         synchronized(queue) {
-            if (queue.size >= MAX_QUEUE) queue.pollFirst()
-            queue.offerLast(chunk)
+            if (queue.size >= MAX_QUEUE) {
+                queue.pollFirst()
+                val dropped = droppedAudioChunks.incrementAndGet()
+                if (dropped == 1 || dropped % 10 == 0) {
+                    Log.w(TAG, "audio_queue_overflow dropped=$dropped queue=${queue.size}/$MAX_QUEUE")
+                }
+            }
+            queue.offerLast(queued)
         }
     }
 
@@ -443,7 +457,17 @@ class GeminiLiveClient(
         sc.optJSONObject("inputTranscription")?.optString("text")
             ?.takeIf { it.isNotEmpty() }?.let { listener.onInputText(it) }
         sc.optJSONObject("outputTranscription")?.optString("text")
-            ?.takeIf { it.isNotEmpty() }?.let { listener.onOutputText(it) }
+            ?.takeIf { it.isNotEmpty() }?.let { outputText ->
+                val now = SystemClock.elapsedRealtime()
+                if (firstOutputLogged.compareAndSet(false, true) && firstAudioSentAtMs > 0L) {
+                    Log.i(
+                        TAG,
+                        "first_output_ms=${now - firstAudioSentAtMs} " +
+                            "since_last_audio_ms=${(now - lastAudioSentAtMs).coerceAtLeast(0L)}",
+                    )
+                }
+                listener.onOutputText(outputText)
+            }
         // modelTurn 里的翻译语音块直接忽略，不播放
     }
 
@@ -458,29 +482,36 @@ class GeminiLiveClient(
     private fun senderLoop() {
         while (running.get()) {
             try {
-                val chunk = queue.pollFirst(100, TimeUnit.MILLISECONDS) ?: continue
+                val queued = queue.pollFirst(100, TimeUnit.MILLISECONDS) ?: continue
                 if (!ready) {
                     synchronized(queue) {
                         // If fresh capture filled the queue while this chunk was in flight,
                         // keep the newer audio rather than exceeding the latency budget.
-                        if (queue.size < MAX_QUEUE) queue.offerFirst(chunk)
+                        if (queue.size < MAX_QUEUE) queue.offerFirst(queued)
                     }
                     Thread.sleep(60)
                     continue
                 }
-                val b64 = Base64.encodeToString(chunk, Base64.NO_WRAP)
+                val queueWaitMs = (SystemClock.elapsedRealtime() - queued.enqueuedAtMs).coerceAtLeast(0L)
+                if (queueWaitMs >= 250L) {
+                    Log.w(TAG, "audio_queue_wait_ms=$queueWaitMs queue=${queue.size}/$MAX_QUEUE")
+                }
+                val b64 = Base64.encodeToString(queued.bytes, Base64.NO_WRAP)
                 val msg =
                     "{\"realtimeInput\":{\"audio\":{\"data\":\"$b64\",\"mimeType\":\"audio/pcm;rate=16000\"}}}"
                 val w = ws
                 if (w != null && w.send(msg)) {
                     synchronized(sentRing) {
-                        sentRing.addLast(chunk)
+                        sentRing.addLast(queued)
                         while (sentRing.size > OVERLAP_CHUNKS) sentRing.removeFirst()
                     }
+                    val sentAt = SystemClock.elapsedRealtime()
+                    if (firstAudioSentAtMs == 0L) firstAudioSentAtMs = sentAt
+                    lastAudioSentAtMs = sentAt
                     StatusBus.chunksSent.incrementAndGet()
                 } else {
                     synchronized(queue) {
-                        if (queue.size < MAX_QUEUE) queue.offerFirst(chunk)
+                        if (queue.size < MAX_QUEUE) queue.offerFirst(queued)
                     }
                     Thread.sleep(120)
                 }
