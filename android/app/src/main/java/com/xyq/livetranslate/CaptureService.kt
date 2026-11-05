@@ -379,6 +379,7 @@ class CaptureService : Service() {
         if (committed.isEmpty()) return
         zhLines.addLast(committed)
         sessionLines.addLast(committed)
+        overlay?.addCommittedLine(committed)
         logger?.commitTranslation(committed)
         while (zhLines.size > 4) zhLines.removeFirst()
         while (sessionLines.size > 80) sessionLines.removeFirst()
