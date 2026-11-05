@@ -24,6 +24,8 @@ class TranscriptLoggerTest {
         )
         logger.commitTranslation("Go!")
         logger.commitTranslation("Go!")
+        // A final identical line may still be buffered when the user stops the session.
+        logger.logZh("Go!")
         logger.close()
 
         var savedItem: HistoryStore.HistoryItem? = null
@@ -41,7 +43,7 @@ class TranscriptLoggerTest {
         }
 
         assertEquals(
-            listOf("Go!", "Go!"),
+            listOf("Go!", "Go!", "Go!"),
             savedSession?.segments?.map { it.translatedText },
         )
         savedItem?.let { HistoryStore.delete(context, it.fileName) }
