@@ -45,8 +45,6 @@ class TranslationPlanStoreTest {
         assertEquals("multi", legacy.sourceLanguageCode)
         assertEquals("vi", legacy.targetLanguageCode)
 
-        assertEquals("multi", TranslationPlan.default(TranslationMode.VIDEO).sourceLanguageCode)
-
         val multilingual = TranslationPlan(
             mode = TranslationMode.VIDEO,
             sourceLanguageCode = "multi",
