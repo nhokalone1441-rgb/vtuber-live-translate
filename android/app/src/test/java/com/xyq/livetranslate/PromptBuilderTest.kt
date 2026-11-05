@@ -153,7 +153,7 @@ class PromptBuilderTest {
         assertTrue(prompt.contains("逐段判断实际说出的语言"))
         assertTrue(prompt.contains("敬语等级"))
         assertTrue(prompt.contains("短语动词、习语"))
-        assertTrue(prompt.contains("不要逐词直译日语语序"))
+        assertTrue(prompt.contains("日语：结合敬语/常体、句尾语气"))
         assertTrue(prompt.contains("自然、准确、可快速阅读的越南语字幕"))
     }
 
