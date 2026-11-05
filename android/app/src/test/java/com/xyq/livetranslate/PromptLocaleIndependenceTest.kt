@@ -61,7 +61,7 @@ class PromptLocaleIndependenceTest {
             "【翻译方向：英语 → 简体中文】",
             "【输入模式：同传】",
             "【场景：会议】",
-            "你是实时语音翻译引擎：",
+            "你是实时语音翻译引擎，首要目标是准确传达原话：",
             "输入来自麦克风现场语音",
         ).forEach { fixed ->
             assertTrue("「$fixed」必须固定中文", zhPrompt.contains(fixed))
