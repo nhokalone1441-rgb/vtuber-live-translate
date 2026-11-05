@@ -95,8 +95,8 @@ class PromptLocaleIndependenceTest {
         assertEquals("越南语", TranslationLanguageCatalog.target("vi").promptLabel)
 
         // label 是界面展示名，英文界面下应为英文
-        assertEquals("Multilingual (ZH/JA/EN/KO)", TranslationLanguageCatalog.source("auto").label)
-        assertEquals("Vietnamese", TranslationLanguageCatalog.target("vi").label)
+        assertEquals("Nhiều ngôn ngữ", TranslationLanguageCatalog.source("auto").label)
+        assertEquals("Tiếng Việt", TranslationLanguageCatalog.target("vi").label)
     }
 
     /** 用户改过的描述是用户数据，任何界面语言下都原样发给模型。 */
