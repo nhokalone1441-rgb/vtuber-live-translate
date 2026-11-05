@@ -135,8 +135,9 @@ class GeminiLiveClient(
             customVocabulary: List<String> = emptyList(),
         ): String {
             val inputTranscription = JSONObject()
-            sourceLanguageHint(sourceLang)?.let { hint ->
-                inputTranscription.put("languageCodes", JSONArray().put(hint))
+            val languageHints = sourceLanguageHints(sourceLang)
+            if (languageHints.isNotEmpty()) {
+                inputTranscription.put("languageCodes", JSONArray(languageHints))
             }
             if (model == PROMPTED_MODEL) {
                 val vocabulary = normalizeCustomVocabulary(customVocabulary)
@@ -218,13 +219,14 @@ class GeminiLiveClient(
 
         // These hints apply to the optional input transcript only. The dedicated Live Translate
         // model still detects the spoken source language itself; this does not lock translation.
-        private fun sourceLanguageHint(sourceLang: String): String? = when (sourceLang.lowercase()) {
-            "zh" -> "zh-CN"
-            "ja" -> "ja-JP"
-            "en" -> "en-US"
-            "ko" -> "ko-KR"
-            // Multi deliberately leaves languageCodes empty for automatic detection.
-            else -> null
+        private fun sourceLanguageHints(sourceLang: String): List<String> = when (sourceLang.lowercase()) {
+            "zh" -> listOf("zh-CN")
+            "ja" -> listOf("ja-JP")
+            "en" -> listOf("en-US")
+            "ko" -> listOf("ko-KR")
+            // Multi lets transcription recognize code-switching among the four supported sources.
+            "multi", "auto" -> listOf("zh-CN", "ja-JP", "en-US", "ko-KR")
+            else -> emptyList()
         }
 
         /**

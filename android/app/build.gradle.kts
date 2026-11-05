@@ -11,8 +11,8 @@ android {
         applicationId = "com.xyq.livetranslate"
         minSdk = 29
         targetSdk = 35
-        versionCode = 41
-        versionName = "2.6.3"
+        versionCode = 42
+        versionName = "2.6.4"
     }
 
     signingConfigs {
