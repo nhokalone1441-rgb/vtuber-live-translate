@@ -89,6 +89,13 @@ class GeminiLiveClient(
                     "and do not add explanations. Output only the Vietnamese translation. " +
                     "Preserve all meaning and do not invent unclear words.",
             )
+            appendLine(
+                "This is a live subtitle stream: translate and emit Vietnamese incrementally as soon as " +
+                    "a short phrase or clause is sufficiently understood. Do not wait for the speaker to " +
+                    "finish the whole sentence, for punctuation, or for silence. Keep sending revised/continued " +
+                    "translation fragments as new speech arrives; do not hold all translation until end of turn. " +
+                    "If a fragment is genuinely ambiguous, wait only for the minimum context needed rather than guessing.",
+            )
             if (prompt.isNotBlank()) append(prompt)
         }.trim()
 
