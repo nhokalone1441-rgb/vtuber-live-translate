@@ -68,7 +68,7 @@ class FinalDataModelTest {
         val plan = TranslationPlan(
             mode = TranslationMode.VIDEO,
             sourceLanguageCode = "ja",
-            targetLanguageCode = "en",
+            targetLanguageCode = "vi",
             scenePresetId = "livestream",
         )
 
@@ -77,7 +77,7 @@ class FinalDataModelTest {
 
         assertEquals(456L, snapshot.startedAtMs)
         assertEquals("ja", snapshot.sourceLanguageCode)
-        assertEquals("en", snapshot.targetLanguageCode)
+        assertEquals("vi", snapshot.targetLanguageCode)
         assertEquals("livestream", snapshot.scenePresetId)
         assertEquals("直播", snapshot.sceneLabel)
     }
