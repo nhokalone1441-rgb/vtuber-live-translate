@@ -80,6 +80,29 @@ class SubtitleStabilizerTest {
     }
 
     @Test
+    fun suppressesAnImmediateExactReplayButNotALaterRepeatedLine() {
+        val renders = mutableListOf<Pair<String, String>>()
+        val stabilizer = SubtitleStabilizer(
+            handler = Handler(Looper.getMainLooper()),
+            idleCommitMs = 100L,
+            onRender = { confirmed, current -> renders += confirmed to current },
+        )
+        val committedAtField = SubtitleStabilizer::class.java
+            .getDeclaredField("lastCommittedAtMs")
+            .apply { isAccessible = true }
+
+        stabilizer.onFragment("Go!")
+        shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
+        val firstCommitAt = committedAtField.getLong(stabilizer)
+
+        shadowOf(Looper.getMainLooper()).idleFor(500, TimeUnit.MILLISECONDS)
+        stabilizer.onFragment("Go!")
+        shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
+
+        assertEquals(firstCommitAt, committedAtField.getLong(stabilizer))
+    }
+
+    @Test
     fun doesNotDropAShortLineJustBecauseItWasContainedInThePreviousLine() {
         val renders = mutableListOf<Pair<String, String>>()
         val stabilizer = SubtitleStabilizer(
