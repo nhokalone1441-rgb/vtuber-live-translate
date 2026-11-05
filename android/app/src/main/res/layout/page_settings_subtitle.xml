@@ -136,6 +136,20 @@
                     android:stepSize="1"
                     android:valueFrom="1"
                     android:valueTo="3"/>
+                <TextView
+                    android:id="@+id/tvHistoryDurationVal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_8"
+                    android:text="@string/settings_subtitle_history_duration_default"
+                    android:textSize="13sp"/>
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/slHistoryDuration"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="1"
+                    android:valueFrom="2"
+                    android:valueTo="30"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
         <com.google.android.material.card.MaterialCardView
