@@ -101,7 +101,7 @@ class GeminiLiveProbeTest {
     @Test
     fun fixedSourceOptionsMapToExpectedTranscriptLanguageHints() {
         val expected = mapOf(
-            "zh" to "zh-CN",
+            "zh" to "cmn-Hans-CN",
             "ja" to "ja-JP",
             "en" to "en-US",
             "ko" to "ko-KR",
@@ -124,7 +124,7 @@ class GeminiLiveProbeTest {
             GeminiLiveClient.buildSetupJson(sourceLang = "multi"),
         ).getJSONObject("setup")
         val hints = setup.getJSONObject("inputAudioTranscription").getJSONArray("languageCodes")
-        assertEquals(listOf("zh-CN", "ja-JP", "en-US", "ko-KR"), (0 until hints.length()).map { hints.getString(it) })
+        assertEquals(listOf("cmn-Hans-CN", "ja-JP", "en-US", "ko-KR"), (0 until hints.length()).map { hints.getString(it) })
     }
 
     @Test
@@ -267,7 +267,7 @@ class GeminiLiveProbeTest {
         assertTrue(setup.getJSONObject("generationConfig").has("translationConfig"))
         assertFalse(setup.has("systemInstruction"))
         val languageHints = setup.getJSONObject("inputAudioTranscription").getJSONArray("languageCodes")
-        assertEquals(listOf("zh-CN", "ja-JP", "en-US", "ko-KR"), (0 until languageHints.length()).map { languageHints.getString(it) })
+        assertEquals(listOf("cmn-Hans-CN", "ja-JP", "en-US", "ko-KR"), (0 until languageHints.length()).map { languageHints.getString(it) })
     }
 
     @Test
