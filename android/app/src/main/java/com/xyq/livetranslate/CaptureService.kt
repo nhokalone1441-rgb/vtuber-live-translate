@@ -71,6 +71,7 @@ class CaptureService : Service() {
 
     @Volatile private var capturing = false
     @Volatile private var paused = false
+    private val subtitleEpoch = java.util.concurrent.atomic.AtomicLong(0L)
     private var activeMode: String = ""
     private val jaTail = StringBuilder()
     private val zhLines = ArrayDeque<String>()
@@ -87,8 +88,11 @@ class CaptureService : Service() {
             ACTION_TOGGLE_PAUSE -> {
                 paused = !paused
                 StatusBus.paused = paused
-                // Drop partial PCM and queued audio at the pause boundary; keep the Live session.
+                // Invalidate any result already posted to the UI before the pause boundary.
+                subtitleEpoch.incrementAndGet()
                 pcmProcessor?.reset()
+                stabilizer?.reset()
+                if (paused) overlay?.clearLiveLine()
                 client?.setInputPaused(paused)
             }
         }
@@ -274,10 +278,12 @@ class CaptureService : Service() {
 
                 override fun onOutputText(text: String) {
                     if (paused) return
+                    val epoch = subtitleEpoch.get()
                     val receivedAtMs = SystemClock.elapsedRealtime()
                     logger?.logZh(text)
                     mainHandler.post {
-                        if (paused) return@post
+                        // A queued callback from before pause must stay invalid even after resume.
+                        if (paused || subtitleEpoch.get() != epoch) return@post
                         val dispatchMs = SystemClock.elapsedRealtime() - receivedAtMs
                         if (dispatchMs >= 50L) {
                             Log.w(TAG, "subtitle_main_thread_dispatch_ms=$dispatchMs")
