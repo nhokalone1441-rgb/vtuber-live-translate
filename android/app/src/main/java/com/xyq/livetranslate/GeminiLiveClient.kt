@@ -100,6 +100,7 @@ class GeminiLiveClient(
          * 构造符合 Gemini Live Translate 协议的 setup 消息。
          * 字段层级严格依赖官方与实测契约，禁止漂移。
          */
+        @Suppress("UNUSED_PARAMETER")
         fun buildSetupJson(
             model: String = MODEL,
             targetLang: String = TranslationPlan.DEFAULT_TARGET_LANGUAGE,
@@ -131,6 +132,8 @@ class GeminiLiveClient(
             return JSONObject().put("setup", setup).toString()
         }
 
+        // These hints apply to the optional input transcript only. The dedicated Live Translate
+        // model still detects the spoken source language itself; this does not lock translation. 
         private fun sourceLanguageHint(sourceLang: String): String? = when (sourceLang.lowercase()) {
             "zh" -> "zh-CN"
             "ja" -> "ja-JP"
