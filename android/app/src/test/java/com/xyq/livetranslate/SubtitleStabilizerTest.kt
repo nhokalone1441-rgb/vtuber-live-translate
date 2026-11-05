@@ -3,6 +3,7 @@ package com.xyq.livetranslate
 import android.os.Handler
 import android.os.Looper
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -12,212 +13,129 @@ import java.util.concurrent.TimeUnit
 @RunWith(RobolectricTestRunner::class)
 class SubtitleStabilizerTest {
     @Test
-    fun keepsEverySentenceFromOneServerFragment() {
+    fun buffersFragmentsAndCommitsOneCompleteDialogueBlockAfterShortQuietWindow() {
+        val committed = mutableListOf<String>()
         val renders = mutableListOf<Pair<String, String>>()
-        val committed = mutableListOf<String>()
         val stabilizer = SubtitleStabilizer(
             handler = Handler(Looper.getMainLooper()),
-            onCommit = { committed += it },
-            onRender = { confirmed, current -> renders += confirmed to current },
-        )
-
-        stabilizer.onFragment("第一句。第二句！第三句？")
-
-        // Complete clauses promote immediately and remain separate history rows.
-        assertEquals(listOf("第一句。", "第二句！", "第三句？"), committed)
-        assertEquals("第三句？", renders.last().first)
-        assertEquals("", renders.last().second)
-
-        shadowOf(Looper.getMainLooper()).idleFor(1_500, TimeUnit.MILLISECONDS)
-        assertEquals("第三句？", renders.last().first)
-        assertEquals("", renders.last().second)
-    }
-
-    @Test
-    fun englishPeriodCommitsAndKeepsClosingQuoteAttached() {
-        val committed = mutableListOf<String>()
-        val stabilizer = SubtitleStabilizer(
-            handler = Handler(Looper.getMainLooper()),
-            onCommit = { committed += it },
-            onRender = { _, _ -> },
-        )
-
-        stabilizer.onFragment("He said, \"Go now!\" Then he left.")
-
-        assertEquals(listOf("He said, \"Go now!\"", "Then he left."), committed)
-    }
-
-    @Test
-    fun completedSentenceMovesToHistoryWhileUnfinishedWordsStayLive() {
-        val renders = mutableListOf<Pair<String, String>>()
-        val committed = mutableListOf<String>()
-        val stabilizer = SubtitleStabilizer(
-            handler = Handler(Looper.getMainLooper()),
+            idleCommitMs = 800L,
             onCommit = { committed += it },
             onRender = { confirmed, current -> renders += confirmed to current },
         )
 
         stabilizer.onFragment("Tôi biết rồi.")
-        stabilizer.onFragment(" Nhưng mà")
+        stabilizer.onFragment(" Nhưng chúng ta phải đi ngay!")
+        assertTrue(committed.isEmpty())
+        assertEquals("", renders.last().second)
 
-        assertEquals(listOf("Tôi biết rồi."), committed)
-        assertEquals("Tôi biết rồi.", renders.last().first)
-        assertEquals(" Nhưng mà", renders.last().second)
+        shadowOf(Looper.getMainLooper()).idleFor(799, TimeUnit.MILLISECONDS)
+        assertTrue(committed.isEmpty())
+        shadowOf(Looper.getMainLooper()).idleFor(1, TimeUnit.MILLISECONDS)
+
+        assertEquals(listOf("Tôi biết rồi. Nhưng chúng ta phải đi ngay!"), committed)
+        assertEquals("", renders.last().second)
     }
 
     @Test
-    fun longUtteranceStaysLiveInsteadOfBeingSplitAtTheOldShortLimit() {
-        val renders = mutableListOf<Pair<String, String>>()
+    fun doesNotSplitMultipleSentencesIntoKaraokeRows() {
+        val committed = mutableListOf<String>()
         val stabilizer = SubtitleStabilizer(
             handler = Handler(Looper.getMainLooper()),
-            maxCurrentChars = 240,
-            onRender = { confirmed, current -> renders += confirmed to current },
+            idleCommitMs = 800L,
+            onCommit = { committed += it },
+            onRender = { _, _ -> },
         )
 
-        val longUtterance = "这是一段比较长的连续对话内容".repeat(8)
-        stabilizer.onFragment(longUtterance)
+        stabilizer.onFragment("第一句。第二句！第三句？")
+        assertTrue(committed.isEmpty())
+        shadowOf(Looper.getMainLooper()).idleFor(800, TimeUnit.MILLISECONDS)
 
-        assertEquals("", renders.last().first)
-        assertEquals(longUtterance, renders.last().second)
+        assertEquals(listOf("第一句。第二句！第三句？"), committed)
     }
 
     @Test
-    fun keepsTheSameDialogueWhenItIsRepeatedAfterAPause() {
-        val renders = mutableListOf<Pair<String, String>>()
+    fun cumulativeSnapshotsReplaceEarlierPartialTextInsteadOfDuplicatingIt() {
+        val committed = mutableListOf<String>()
+        val stabilizer = SubtitleStabilizer(
+            handler = Handler(Looper.getMainLooper()),
+            idleCommitMs = 800L,
+            onCommit = { committed += it },
+            onRender = { _, _ -> },
+        )
+
+        stabilizer.onFragment("We need to")
+        stabilizer.onFragment("We need to leave now.")
+        shadowOf(Looper.getMainLooper()).idleFor(800, TimeUnit.MILLISECONDS)
+
+        assertEquals(listOf("We need to leave now."), committed)
+    }
+
+    @Test
+    fun appendsDeltaFragmentsWithoutRepeatingTheirOverlap() {
+        val committed = mutableListOf<String>()
+        val stabilizer = SubtitleStabilizer(
+            handler = Handler(Looper.getMainLooper()),
+            idleCommitMs = 800L,
+            onCommit = { committed += it },
+            onRender = { _, _ -> },
+        )
+
+        stabilizer.onFragment("I thought")
+        stabilizer.onFragment("thought you knew.")
+        shadowOf(Looper.getMainLooper()).idleFor(800, TimeUnit.MILLISECONDS)
+
+        assertEquals(listOf("I thought you knew."), committed)
+    }
+
+    @Test
+    fun repeatedDialogueAfterARealPauseIsNotSuppressed() {
         val committed = mutableListOf<String>()
         val stabilizer = SubtitleStabilizer(
             handler = Handler(Looper.getMainLooper()),
             idleCommitMs = 100L,
             onCommit = { committed += it },
-            onRender = { confirmed, current -> renders += confirmed to current },
+            onRender = { _, _ -> },
         )
 
         stabilizer.onFragment("Go!")
         shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
-        assertEquals("Go!", renders.last().first)
-        val committedAt = SubtitleStabilizer::class.java
-            .getDeclaredField("lastCommittedAtMs")
-            .apply { isAccessible = true }
-            .getLong(stabilizer)
-
         shadowOf(Looper.getMainLooper()).idleFor(1_000, TimeUnit.MILLISECONDS)
         stabilizer.onFragment("Go!")
         shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
 
-        assertEquals("Go!", renders.last().first)
         assertEquals(listOf("Go!", "Go!"), committed)
-        val repeatedAt = SubtitleStabilizer::class.java
-            .getDeclaredField("lastCommittedAtMs")
-            .apply { isAccessible = true }
-            .getLong(stabilizer)
-        assertEquals(true, repeatedAt > committedAt)
     }
 
     @Test
-    fun suppressesAnImmediateExactReplayButNotALaterRepeatedLine() {
-        val renders = mutableListOf<Pair<String, String>>()
+    fun shortNonSpeechVocalizationIsFilteredAfterBuffering() {
         val committed = mutableListOf<String>()
         val stabilizer = SubtitleStabilizer(
             handler = Handler(Looper.getMainLooper()),
             idleCommitMs = 100L,
             onCommit = { committed += it },
-            onRender = { confirmed, current -> renders += confirmed to current },
+            onRender = { _, _ -> },
         )
-        val committedAtField = SubtitleStabilizer::class.java
-            .getDeclaredField("lastCommittedAtMs")
-            .apply { isAccessible = true }
 
-        stabilizer.onFragment("Go!")
-        shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
-        val firstCommitAt = committedAtField.getLong(stabilizer)
-
-        shadowOf(Looper.getMainLooper()).idleFor(500, TimeUnit.MILLISECONDS)
-        stabilizer.onFragment("Go!")
+        stabilizer.onFragment("um")
         shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
 
-        assertEquals(firstCommitAt, committedAtField.getLong(stabilizer))
-        assertEquals(listOf("Go!"), committed)
+        assertTrue(committed.isEmpty())
     }
 
     @Test
-    fun doesNotDropAShortLineJustBecauseItWasContainedInThePreviousLine() {
-        val renders = mutableListOf<Pair<String, String>>()
+    fun resetClearsPendingTextAndCancelsItsCommit() {
         val committed = mutableListOf<String>()
         val stabilizer = SubtitleStabilizer(
             handler = Handler(Looper.getMainLooper()),
-            idleCommitMs = 100L,
+            idleCommitMs = 800L,
             onCommit = { committed += it },
-            onRender = { confirmed, current -> renders += confirmed to current },
+            onRender = { _, _ -> },
         )
 
-        stabilizer.onFragment("I don't know.")
-        shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
+        stabilizer.onFragment("This should not survive pause")
+        stabilizer.reset()
         shadowOf(Looper.getMainLooper()).idleFor(1_000, TimeUnit.MILLISECONDS)
 
-        stabilizer.onFragment("know.")
-        shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
-
-        assertEquals("know.", renders.last().first)
-        assertEquals(listOf("I don't know.", "know."), committed)
-    }
-
-    @Test
-    fun suppressesStandaloneMoaningSounds() {
-        val renders = mutableListOf<Pair<String, String>>()
-        val stabilizer = SubtitleStabilizer(
-            handler = Handler(Looper.getMainLooper()),
-            maxCurrentChars = 1,
-            onRender = { confirmed, current -> renders += confirmed to current },
-        )
-
-        stabilizer.onFragment("um, á, ớ")
-
-        assertEquals("", renders.last().first)
-        assertEquals("", renders.last().second)
-    }
-
-    @Test
-    fun preservesMeaningfulExclamationAndDialogue() {
-        val renders = mutableListOf<Pair<String, String>>()
-        val committed = mutableListOf<String>()
-        val stabilizer = SubtitleStabilizer(
-            handler = Handler(Looper.getMainLooper()),
-            maxCurrentChars = 1,
-            onCommit = { committed += it },
-            onRender = { confirmed, current -> renders += confirmed to current },
-        )
-
-        stabilizer.onFragment("Á! Có ai không?")
-
-        // Dialogue punctuation creates two history entries; the exclamation
-        // must survive the vocalization filter rather than being discarded.
-        assertEquals(listOf("Á!", "Có ai không?"), committed)
-        assertEquals("Có ai không?", renders.last().first)
-        assertEquals("", renders.last().second)
-    }
-
-    @Test
-    fun rendersVietnameseFragmentsImmediatelyWithoutWaitingForPunctuation() {
-        val renders = mutableListOf<Pair<String, String>>()
-        val stabilizer = SubtitleStabilizer(
-            handler = Handler(Looper.getMainLooper()),
-            onRender = { confirmed, current -> renders += confirmed to current },
-        )
-
-        stabilizer.onFragment("Anh yêu")
-        assertEquals("", renders.last().first)
-        assertEquals("Anh yêu", renders.last().second)
-
-        stabilizer.onFragment(" em")
-        assertEquals("Anh yêu em", renders.last().second)
-        assertEquals("", renders.last().first)
-    }
-
-
-    @Test
-    fun suppressesBareMoanSyllableButKeepsExclaimedAh() {
-        assertEquals(true, SubtitleSpeechFilter.isNonSpeechVocalization("á"))
-        assertEquals(false, SubtitleSpeechFilter.isNonSpeechVocalization("Á!"))
-        assertEquals(false, SubtitleSpeechFilter.isNonSpeechVocalization("Á! Có ai không?"))
+        assertTrue(committed.isEmpty())
     }
 }
