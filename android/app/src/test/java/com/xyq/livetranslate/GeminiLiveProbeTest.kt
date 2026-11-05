@@ -225,6 +225,78 @@ class GeminiLiveProbeTest {
         }
     }
 
+
+    @Test
+    fun promptedGemini38SetupSendsSystemInstructionAndKeepsSourceHint() {
+        val prompt = "Translate all clearly spoken dialogue into natural Vietnamese."
+        val setup = JSONObject(
+            GeminiLiveClient.buildSetupJson(
+                model = GeminiLiveClient.PROMPTED_MODEL,
+                targetLang = "vi",
+                sourceLang = "ja",
+                prompt = prompt,
+            ),
+        ).getJSONObject("setup")
+
+        assertEquals(GeminiLiveClient.PROMPTED_MODEL, setup.getString("model"))
+        val systemInstruction = setup.getJSONObject("systemInstruction")
+            .getJSONArray("parts").getJSONObject(0).getString("text")
+        assertTrue(systemInstruction.contains(prompt))
+        assertTrue(systemInstruction.contains("do not filter it as background chatter"))
+        assertFalse(setup.getJSONObject("generationConfig").has("translationConfig"))
+        assertEquals(
+            "ja-JP",
+            setup.getJSONObject("inputAudioTranscription")
+                .getJSONArray("languageCodes").getString(0),
+        )
+    }
+
+    @Test
+    fun dedicatedTranslateSetupKeepsTranslationConfigAndOmitsPrompt() {
+        val setup = JSONObject(
+            GeminiLiveClient.buildSetupJson(
+                model = GeminiLiveClient.MODEL,
+                targetLang = "vi",
+                sourceLang = "multi",
+                prompt = "This must not be sent to the dedicated translation model.",
+            ),
+        ).getJSONObject("setup")
+
+        assertEquals(GeminiLiveClient.MODEL, setup.getString("model"))
+        assertTrue(setup.getJSONObject("generationConfig").has("translationConfig"))
+        assertFalse(setup.has("systemInstruction"))
+        assertEquals(0, setup.getJSONObject("inputAudioTranscription").length())
+    }
+
+    @Test
+    fun promptedProbeSendsSystemInstructionBeforeHandshakeCompletes() {
+        val receivedSetup = java.util.concurrent.atomic.AtomicReference<JSONObject?>()
+        server.enqueue(
+            MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    receivedSetup.set(JSONObject(text).getJSONObject("setup"))
+                    webSocket.send("""{"setupComplete":{}}""")
+                }
+            }),
+        )
+
+        GeminiLiveClient.probeLive(
+            baseUrl = server.url("/").toString(),
+            apiKey = "test-live-key",
+            timeoutMs = 3000L,
+            model = GeminiLiveClient.PROMPTED_MODEL,
+            prompt = "Translate into Vietnamese only.",
+        )
+
+        val setup = receivedSetup.get()
+        assertNotNull(setup)
+        assertEquals(GeminiLiveClient.PROMPTED_MODEL, setup!!.getString("model"))
+        val systemInstruction = setup.getJSONObject("systemInstruction")
+            .getJSONArray("parts").getJSONObject(0).getString("text")
+        assertTrue(systemInstruction.contains("Translate into Vietnamese only."))
+        assertTrue(systemInstruction.contains("Translate every intelligible spoken line"))
+    }
+
     private fun assertNotNull(obj: Any?) {
         assertTrue(obj != null)
     }

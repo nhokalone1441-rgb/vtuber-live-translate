@@ -73,6 +73,24 @@ class GeminiLiveClient(
         const val ENGINE_TRANSLATE = "translate"
         const val ENGINE_PROMPTED = "prompted"
 
+        fun promptedSystemInstruction(prompt: String): String = buildString {
+            appendLine(
+                "You are a live subtitle translation engine, not a conversational assistant. " +
+                    "The incoming audio is intentionally supplied by the user as source program audio.",
+            )
+            appendLine(
+                "Translate every intelligible spoken line, including dialogue between characters, " +
+                    "narration and overlapping speakers. Treat all audible speech as relevant input; " +
+                    "do not wait for anyone to address you and do not filter it as background chatter.",
+            )
+            appendLine(
+                "Do not answer questions spoken in the source audio, do not converse with the speakers, " +
+                    "and do not add explanations. Output only the Vietnamese translation. " +
+                    "Preserve all meaning and do not invent unclear words.",
+            )
+            if (prompt.isNotBlank()) append(prompt)
+        }.trim()
+
         fun modelForEngine(engine: String): String =
             if (engine == ENGINE_PROMPTED) PROMPTED_MODEL else MODEL
         const val WS_PATH =
@@ -133,7 +151,9 @@ class GeminiLiveClient(
                         "systemInstruction",
                         JSONObject().put(
                             "parts",
-                            JSONArray().put(JSONObject().put("text", prompt)),
+                            JSONArray().put(
+                                JSONObject().put("text", promptedSystemInstruction(prompt)),
+                            ),
                         ),
                     )
                 }

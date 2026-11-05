@@ -99,6 +99,10 @@ internal data class SettingsViews(
     val btnSecondAiFormatOpenAi: MaterialButton,
     val btnTestSecondAi: Button,
     val tvSecondAiTestStatus: TextView,
+    val toggleLiveEngine: MaterialButtonToggleGroup,
+    val btnLiveEngineTranslate: MaterialButton,
+    val btnLiveEnginePrompted: MaterialButton,
+    val tvLiveEngineHint: TextView,
     val swEchoTarget: MaterialSwitch,
     val slRotate: Slider,
     val slIdle: Slider,
@@ -183,6 +187,10 @@ internal data class SettingsViews(
                 btnSecondAiFormatOpenAi = root.findViewById(R.id.btnSecondAiFormatOpenAi),
                 btnTestSecondAi = root.findViewById(R.id.btnTestSecondAi),
                 tvSecondAiTestStatus = root.findViewById(R.id.tvSecondAiTestStatus),
+                toggleLiveEngine = root.findViewById(R.id.toggleLiveEngine),
+                btnLiveEngineTranslate = root.findViewById(R.id.btnLiveEngineTranslate),
+                btnLiveEnginePrompted = root.findViewById(R.id.btnLiveEnginePrompted),
+                tvLiveEngineHint = root.findViewById(R.id.tvLiveEngineHint),
                 swEchoTarget = root.findViewById(R.id.swEchoTarget),
                 slRotate = root.findViewById(R.id.slRotate),
                 slIdle = root.findViewById(R.id.slIdle),
@@ -253,6 +261,7 @@ internal class SettingsController(
         setupDisclosure(views.btnTranslateAdvanced, views.translateAdvanced)
         setupDisclosure(views.btnSubtitleAdvanced, views.subtitleAdvanced)
         setupStyleSliders()
+        setupLiveEngineControls()
         setupParamControls()
         setupAbout()
         views.btnBattery.setOnClickListener { requestBatteryWhitelist() }
@@ -446,7 +455,13 @@ internal class SettingsController(
         }
         translateTesting = true
         setTranslateTestBusy(true)
-        val testingMsg = context.getString(R.string.live_model_test_testing, GeminiLiveClient.MODEL)
+        val selectedModel = GeminiLiveClient.modelForEngine(SettingsStore.liveEngine(context))
+        val probePrompt = if (selectedModel == GeminiLiveClient.PROMPTED_MODEL) {
+            "You are a real-time subtitle translator. Translate every clearly spoken utterance into natural Vietnamese. Preserve meaning, details, tone and context. Output only the Vietnamese translation; do not answer, explain, summarize, or invent unclear speech."
+        } else {
+            ""
+        }
+        val testingMsg = context.getString(R.string.live_model_test_testing, selectedModel)
         renderTranslateTestStatus(false, testingMsg)
 
         Thread({
@@ -455,6 +470,8 @@ internal class SettingsController(
                     baseUrl = baseUrl,
                     apiKey = apiKey,
                     timeoutMs = 10_000L,
+                    model = selectedModel,
+                    prompt = probePrompt,
                 )
             }
             postToUi {
@@ -930,6 +947,43 @@ internal class SettingsController(
         }
     }
 
+    private var syncingLiveEngineUi = false
+
+    private fun setupLiveEngineControls() {
+        renderLiveEngineUi()
+        views.toggleLiveEngine.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked || syncingLiveEngineUi) return@addOnButtonCheckedListener
+            val engine = if (checkedId == views.btnLiveEnginePrompted.id) {
+                GeminiLiveClient.ENGINE_PROMPTED
+            } else {
+                GeminiLiveClient.ENGINE_TRANSLATE
+            }
+            SettingsStore.saveLiveEngine(context, engine)
+            renderLiveEngineUi()
+            invalidateTranslateTestStatus()
+        }
+    }
+
+    private fun renderLiveEngineUi() {
+        val engine = SettingsStore.liveEngine(context)
+        syncingLiveEngineUi = true
+        views.toggleLiveEngine.check(
+            if (engine == GeminiLiveClient.ENGINE_PROMPTED) {
+                views.btnLiveEnginePrompted.id
+            } else {
+                views.btnLiveEngineTranslate.id
+            },
+        )
+        syncingLiveEngineUi = false
+        views.tvLiveEngineHint.text = context.getString(
+            if (engine == GeminiLiveClient.ENGINE_PROMPTED) {
+                R.string.rt_live_engine_prompted_hint
+            } else {
+                R.string.rt_live_engine_translate_hint
+            },
+        )
+    }
+
     private fun setupParamControls() {
         renderParamValues()
         views.swEchoTarget.setOnCheckedChangeListener { _, checked ->
@@ -950,6 +1004,8 @@ internal class SettingsController(
         }
         views.btnResetTranslate.setOnClickListener {
             SettingsStore.saveEchoTargetLanguage(context, true)
+            SettingsStore.saveLiveEngine(context, SettingsStore.DEFAULT_LIVE_ENGINE)
+            renderLiveEngineUi()
             SettingsStore.saveRotateSeconds(context, SettingsStore.DEFAULT_ROTATE_SECONDS)
             renderParamValues()
             toast(context.getString(R.string.rt_toast_translate_params_reset))

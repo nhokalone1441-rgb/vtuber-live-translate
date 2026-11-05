@@ -150,6 +150,45 @@
                         style="@style/FieldLabel"
                         android:layout_marginTop="0dp"
                         android:text="@string/settings_effect_next_time"/>
+                    <TextView
+                        style="@style/FieldLabel"
+                        android:layout_marginTop="@dimen/space_12"
+                        android:text="@string/rt_live_engine_title"/>
+                    <com.google.android.material.button.MaterialButtonToggleGroup
+                        android:id="@+id/toggleLiveEngine"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_8"
+                        app:selectionRequired="true"
+                        app:singleSelection="true">
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnLiveEngineTranslate"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:minHeight="@dimen/touch_target"
+                            android:text="@string/rt_live_engine_translate"
+                            android:textAllCaps="false"
+                            android:textSize="12sp"/>
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnLiveEnginePrompted"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:minHeight="@dimen/touch_target"
+                            android:text="@string/rt_live_engine_prompted"
+                            android:textAllCaps="false"
+                            android:textSize="12sp"/>
+                    </com.google.android.material.button.MaterialButtonToggleGroup>
+                    <TextView
+                        android:id="@+id/tvLiveEngineHint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_8"
+                        android:textColor="@color/text_muted"
+                        android:textSize="12sp"/>
                     <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/swEchoTarget"
                         android:layout_width="match_parent"
