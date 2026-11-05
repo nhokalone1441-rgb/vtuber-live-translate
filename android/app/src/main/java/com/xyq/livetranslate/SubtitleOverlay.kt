@@ -46,6 +46,7 @@ class SubtitleOverlay(
     // Two finalized dialogue rows plus one live karaoke row.
     private data class HistoryEntry(val text: String, val createdAt: Long)
     private val subtitleHistory = ArrayDeque<HistoryEntry>()
+    private val pendingHistory = ArrayDeque<String>()
     private val historyHandler = Handler(Looper.getMainLooper())
     private val historyExpiry = Runnable { pruneExpiredHistory(); renderLines(); scheduleHistoryExpiry() }
     private var dot: View? = null
@@ -238,18 +239,22 @@ class SubtitleOverlay(
         collapsed = false
         controlsVisible = false
         historyHandler.removeCallbacks(historyExpiry)
+        pendingHistory.clear()
+        subtitleHistory.clear()
     }
 
     /** A commit event is distinct from the rendered text: identical dialogue may be spoken twice. */
     fun addCommittedLine(text: String) {
         val committed = text.trim()
         if (committed.isEmpty()) return
-        // Keep the entire finalized batch as one dialogue block. A batch may contain
-        // several sentences; splitting it into one-sentence slots made the history
-        // disappear too quickly during natural multi-sentence speech.
+        // Keep every sentence for its full display interval. If several completed
+        // sentences arrive together, queue overflow rather than evicting unread lines.
         pruneExpiredHistory()
-        subtitleHistory.addLast(HistoryEntry(committed, android.os.SystemClock.uptimeMillis()))
-        while (subtitleHistory.size > SUBTITLE_HISTORY_LINES - 1) subtitleHistory.removeFirst()
+        if (subtitleHistory.size < SUBTITLE_HISTORY_LINES - 1) {
+            subtitleHistory.addLast(HistoryEntry(committed, android.os.SystemClock.uptimeMillis()))
+        } else {
+            pendingHistory.addLast(committed)
+        }
         scheduleHistoryExpiry()
         renderLines()
     }
@@ -264,6 +269,9 @@ class SubtitleOverlay(
         val now = android.os.SystemClock.uptimeMillis()
         val durationMs = SettingsStore.overlayDisplayMs(context).toLong()
         while (subtitleHistory.isNotEmpty() && subtitleHistory.first().createdAt + durationMs <= now) subtitleHistory.removeFirst()
+        while (subtitleHistory.size < SUBTITLE_HISTORY_LINES - 1 && pendingHistory.isNotEmpty()) {
+            subtitleHistory.addLast(HistoryEntry(pendingHistory.removeFirst(), now))
+        }
     }
 
     private fun scheduleHistoryExpiry() {
