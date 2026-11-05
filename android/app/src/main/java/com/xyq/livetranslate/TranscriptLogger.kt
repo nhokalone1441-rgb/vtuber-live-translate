@@ -38,7 +38,6 @@ class TranscriptLogger(
     private val rawTranslationBuffer = StringBuilder()
     private val segments = ArrayList<TranscriptSegment>()
     private var closed = false
-    private var lastConfirmedTranslation = ""
 
     private var session = HistorySession(
         id = sessionId,
@@ -103,7 +102,6 @@ class TranscriptLogger(
 
         // This method is called only for explicit stabilizer commit events.
         // Identical text can be a legitimate repeated utterance and must be recorded again.
-        lastConfirmedTranslation = translated
         val segment = TranscriptSegment(
             elapsedMs = System.currentTimeMillis() - startedAt,
             sourceText = source,
@@ -119,9 +117,9 @@ class TranscriptLogger(
         if (closed) return
         val pendingTranslation = rawTranslationBuffer.toString().trim()
         val pendingSource = sourceBuffer.toString().trim()
-        if (pendingTranslation.isNotEmpty() &&
-            (pendingTranslation != lastConfirmedTranslation || pendingSource.isNotEmpty())
-        ) {
+        // Any text still buffered after the last explicit commit is new trailing audio.
+        // Keep it even when identical to the previous line; a repeated utterance is valid dialogue.
+        if (pendingTranslation.isNotEmpty()) {
             commitTranslation(pendingTranslation)
         }
         closed = true
