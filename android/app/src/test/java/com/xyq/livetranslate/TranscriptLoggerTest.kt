@@ -34,7 +34,7 @@ class TranscriptLoggerTest {
         while (System.nanoTime() < deadline) {
             val item = HistoryStore.list(context).singleOrNull()
             val session = item?.let { HistoryStore.load(context, it.fileName) }
-            if (session?.segments?.size == 2) {
+            if (session?.segments?.size == 3) {
                 savedItem = item
                 savedSession = session
                 break
