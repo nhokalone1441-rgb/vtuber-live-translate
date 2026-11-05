@@ -262,14 +262,14 @@ class SubtitleOverlay(
 
     private fun pruneExpiredHistory() {
         val now = android.os.SystemClock.uptimeMillis()
-        val durationMs = SettingsStore.historyDisplaySeconds(context) * 1000L
+        val durationMs = SettingsStore.overlayDisplayMs(context).toLong()
         while (subtitleHistory.isNotEmpty() && subtitleHistory.first().createdAt + durationMs <= now) subtitleHistory.removeFirst()
     }
 
     private fun scheduleHistoryExpiry() {
         historyHandler.removeCallbacks(historyExpiry)
         pruneExpiredHistory()
-        val durationMs = SettingsStore.historyDisplaySeconds(context) * 1000L
+        val durationMs = SettingsStore.overlayDisplayMs(context).toLong()
         val nextExpiry = subtitleHistory.firstOrNull()?.let { it.createdAt + durationMs } ?: return
         historyHandler.postAtTime(historyExpiry, nextExpiry)
     }

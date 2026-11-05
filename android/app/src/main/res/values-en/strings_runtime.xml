@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="rt_live_translate_capability_note">The live engine auto-detects the spoken language. A fixed source language only hints source transcription; scene prompts and session context are not applied to live translation.</string>
+    <string name="rt_live_translate_capability_note">Choose the original audio language above: select a fixed language when known to guide recognition, or Multi for mixed or uncertain audio. Output is always Vietnamese.</string>
     <!-- General & Actions -->
     <!-- Translation language display names: UI only; language codes never change with app locale -->
     <string name="rt_lang_multi">Multilingual (ZH/JA/EN/KO)</string>
+    <string name="rt_label_input_language">Input language / original audio</string>
+    <string name="rt_hint_input_language">Choose a fixed language when known; use Multi for mixed or unknown audio.</string>
     <string name="rt_lang_auto">Auto detect</string>
     <string name="rt_lang_zh">Chinese</string>
     <string name="rt_lang_vi">Vietnamese</string>

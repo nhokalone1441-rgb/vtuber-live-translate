@@ -34,7 +34,7 @@ class TranslationPlanStoreTest {
 
     @Test
     fun supportedLanguagesAreChineseJapaneseEnglishKoreanToVietnameseOnly() {
-        assertEquals(listOf("multi", "zh", "ja", "en", "ko"), TranslationLanguageCatalog.sources.map { it.code })
+        assertEquals(listOf("multi", "en", "zh", "ko", "ja"), TranslationLanguageCatalog.sources.map { it.code })
         assertEquals(listOf("vi"), TranslationLanguageCatalog.targets.map { it.code })
 
         val legacy = TranslationPlan(

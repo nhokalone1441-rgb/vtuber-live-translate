@@ -44,10 +44,10 @@ object TranslationLanguageCatalog {
     // Vietnamese is the sole output language to keep the translation path consistent.
     val sources = listOf(
         TranslationLanguage("multi", "多语言（中文、日语、英语、韩语）", R.string.rt_lang_multi),
-        TranslationLanguage("zh", "中文", R.string.rt_lang_zh),
-        TranslationLanguage("ja", "日语", R.string.rt_lang_ja),
         TranslationLanguage("en", "英语", R.string.rt_lang_en),
+        TranslationLanguage("zh", "中文", R.string.rt_lang_zh),
         TranslationLanguage("ko", "韩语", R.string.rt_lang_ko),
+        TranslationLanguage("ja", "日语", R.string.rt_lang_ja),
     )
     val targets = listOf(
         TranslationLanguage("vi", "越南语", R.string.rt_lang_vi),
@@ -244,7 +244,9 @@ object PromptBuilder {
             - 日语：结合敬语/常体、句尾语气、主语省略、委婉表达和角色关系理解真实意图；不要把敬语机械翻成生硬敬语，也不要漏掉拒绝、讽刺或试探。
             - 英语：正确处理短语动词、习语、缩略表达、反讽、双关和口语省略；按语境翻译整句意思，不逐词替换。
             - 韩语：结合敬语等级、称呼、助词省略和句尾语气判断人物关系与态度；避免把不同礼貌程度全部译成同一种语气。
+            - 每个新句子都重新判断实际语种；同一段音频可在不同角色或句子间切换语言，不要沿用上一句的语种假设。
             - 影视对白优先自然、准确、可快速阅读的越南语字幕；允许为越南语语序调整断句，但不得删掉信息、改变人物态度或擅自补剧情。
+            - 保留否定、反问、条件、因果、时间先后、数字和关键细节；不要因语速快或字幕要短而省略完整意思。
             - 这是连续剧情，持续维护人物、关系、称呼、专名和前后情节的一致性；只用上下文消歧，不用上下文编造听不见的台词。
         """.trimIndent()
         val heading = when (sourceCode) {
@@ -258,16 +260,22 @@ object PromptBuilder {
             "ja" -> """
                 - 结合敬语/常体、句尾助词、主语省略、委婉表达和人物关系理解真实意图；不要逐词直译日语语序。
                 - 区分拒绝、试探、撒娇、命令、讽刺和客套；保留角色说话的礼貌程度与情绪力度。
-                - 对省略的人称只在上下文明确时补出；避免擅自指定“anh/em/chị”或人物性别。
+                - 区分敬语、普通体、命令、请求、委婉拒绝、反问与句尾语气；把礼貌程度和真实态度自然转换成越南语，不要把礼貌表达误译成同意。
+                - 结合人物关系理解「先輩/後輩」等关系称呼；专名与敬称保持一致，关系不明时不擅自补“anh/em/chị”。
+                - 对省略的人称只在上下文明确时补出；避免擅自指定人物性别。
             """.trimIndent()
             "en" -> """
                 - 先按上下文理解短语动词、习语、俚语、缩略语、反讽、双关和口语省略，再译成自然越南语。
                 - 不保留英语句法硬套越南语；准确保留时态、否定、条件、因果和语气。
+                - 正确理解 phrasal verbs、idioms、sarcasm、反问、缩略语和口语省略；优先翻译整句意图，不按单词逐个替换。
+                - 保留时态、体貌、否定、条件、因果与说话者态度；避免把英语反讽、客套或委婉拒绝误成字面赞同。
                 - 对代词与称呼按对话关系处理，不因声音推断性别或擅自添加人称。
             """.trimIndent()
             "ko" -> """
                 - 结合敬语等级、称呼、助词省略和句尾语气判断人物关系与态度；不能把所有句尾都译成同一种礼貌语气。
                 - 按越南语自然语序重组句子，保留敬意、亲疏、命令、请求、讽刺和情绪力度。
+                - 结合正式/非正式语体、敬语等级、句尾词尾、助词省略和称呼判断亲疏、尊重、命令、请求或讽刺；不要把语体差异全部抹平。
+                - 对称呼、职务、亲属称谓和人名保持前后一致；没有足够证据时不擅自补出越南语亲属或年龄称谓。
                 - 省略的人称仅在上下文明确时补出，不根据音色猜测性别或关系。
             """.trimIndent()
             else -> """
