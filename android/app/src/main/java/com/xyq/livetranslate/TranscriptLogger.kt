@@ -101,9 +101,8 @@ class TranscriptLogger(
         sourceBuffer.setLength(0)
         rawTranslationBuffer.setLength(0)
 
-        // 稳定器可能重复回调同一确认结果；只有没有新原文时才视为重复。
-        if (translated == lastConfirmedTranslation && source.isEmpty()) return
-
+        // This method is called only for explicit stabilizer commit events.
+        // Identical text can be a legitimate repeated utterance and must be recorded again.
         lastConfirmedTranslation = translated
         val segment = TranscriptSegment(
             elapsedMs = System.currentTimeMillis() - startedAt,
