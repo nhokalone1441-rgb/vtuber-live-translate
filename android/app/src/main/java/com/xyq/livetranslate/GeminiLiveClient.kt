@@ -89,6 +89,13 @@ class GeminiLiveClient(
                     "and do not add explanations. Output only the Vietnamese translation. " +
                     "Preserve all meaning and do not invent unclear words.",
             )
+            appendLine(
+                "This is a live subtitle stream: translate and emit Vietnamese incrementally as soon as " +
+                    "a short phrase or clause is sufficiently understood. Do not wait for the speaker to " +
+                    "finish the whole sentence, for punctuation, or for silence. Keep sending revised/continued " +
+                    "translation fragments as new speech arrives; do not hold all translation until end of turn. " +
+                    "If a fragment is genuinely ambiguous, wait only for the minimum context needed rather than guessing.",
+            )
             if (prompt.isNotBlank()) append(prompt)
         }.trim()
 
@@ -147,9 +154,26 @@ class GeminiLiveClient(
             }
             val generationConfig = JSONObject()
                 .put("responseModalities", JSONArray().put("AUDIO"))
+            // Keep Live generation running while the next audio frames arrive. The default
+            // START_OF_ACTIVITY_INTERRUPTS policy can cancel a translation response when
+            // incoming speech resumes, which is undesirable for a continuous subtitle stream.
+            val realtimeInputConfig = JSONObject()
+                .put(
+                    "automaticActivityDetection",
+                    JSONObject()
+                        .put("disabled", false)
+                        .put("startOfSpeechSensitivity", "START_SENSITIVITY_HIGH")
+                        .put("endOfSpeechSensitivity", "END_SENSITIVITY_HIGH")
+                        .put("prefixPaddingMs", 40)
+                        // Shorten the server's end-of-speech wait without using tiny,
+                        // context-destroying 100–200ms turn boundaries.
+                        .put("silenceDurationMs", 500),
+                )
+                .put("activityHandling", "NO_INTERRUPTION")
             val setup = JSONObject()
                 .put("model", model)
                 .put("generationConfig", generationConfig)
+                .put("realtimeInputConfig", realtimeInputConfig)
                 .put("inputAudioTranscription", inputTranscription)
                 .put("outputAudioTranscription", JSONObject())
 
@@ -371,6 +395,7 @@ class GeminiLiveClient(
     @Volatile private var firstAudioSentAtMs = 0L
     @Volatile private var lastAudioSentAtMs = 0L
     private val running = AtomicBoolean(false)
+    @Volatile private var inputPaused = false
     private val scheduler = Executors.newSingleThreadScheduledExecutor()
 
     @Volatile private var ws: WebSocket? = null
@@ -381,6 +406,30 @@ class GeminiLiveClient(
     @Volatile private var rotateTask: ScheduledFuture<*>? = null
     @Volatile private var watchdogTask: ScheduledFuture<*>? = null
     private var senderThread: Thread? = null
+
+    /**
+     * A pause is a hard boundary: invalidate the current socket generation so responses
+     * already being generated from pre-pause audio can never leak after resume.
+     * Resume starts a fresh Live connection before accepting new audio.
+     */
+    fun setInputPaused(paused: Boolean) {
+        val wasPaused = inputPaused
+        inputPaused = paused
+        if (paused) {
+            synchronized(queue) { queue.clear() }
+            synchronized(sentRing) { sentRing.clear() }
+            if (!wasPaused) {
+                generation.incrementAndGet()
+                ready = false
+                rotateTask?.cancel(false)
+                watchdogTask?.cancel(false)
+                runCatching { ws?.cancel() }
+                ws = null
+            }
+        } else if (wasPaused && running.get()) {
+            runOnScheduler { connect() }
+        }
+    }
 
     fun start() {
         if (!running.compareAndSet(false, true)) return
@@ -421,9 +470,12 @@ class GeminiLiveClient(
 
     /** 捕获线程调用：塞入一块 100ms/16k/mono 的 PCM。 */
     fun feedChunk(chunk: ByteArray) {
-        if (!running.get()) return
+        if (!running.get() || inputPaused) return
         val queued = QueuedAudio(chunk, SystemClock.elapsedRealtime())
         synchronized(queue) {
+            // Re-check under the same lock used by pause/clear to prevent a stale
+            // capture-thread chunk from being enqueued after the pause boundary.
+            if (!running.get() || inputPaused) return
             if (queue.size >= MAX_QUEUE) {
                 queue.pollFirst()
                 val dropped = droppedAudioChunks.incrementAndGet()
@@ -568,21 +620,41 @@ class GeminiLiveClient(
             return
         }
         val sc = o.optJSONObject("serverContent") ?: return
-        sc.optJSONObject("inputTranscription")?.optString("text")
-            ?.takeIf { it.isNotEmpty() }?.let { listener.onInputText(it) }
-        sc.optJSONObject("outputTranscription")?.optString("text")
-            ?.takeIf { it.isNotEmpty() }?.let { outputText ->
-                val now = SystemClock.elapsedRealtime()
-                if (firstOutputLogged.compareAndSet(false, true) && firstAudioSentAtMs > 0L) {
-                    Log.i(
-                        TAG,
-                        "first_output_ms=${now - firstAudioSentAtMs} " +
-                            "since_last_audio_ms=${(now - lastAudioSentAtMs).coerceAtLeast(0L)}",
-                    )
-                }
-                listener.onOutputText(outputText)
+        val inputText = sc.optJSONObject("inputTranscription")?.optString("text").orEmpty()
+        val outputText = sc.optJSONObject("outputTranscription")?.optString("text").orEmpty()
+        val modelParts = sc.optJSONObject("modelTurn")?.optJSONArray("parts")
+        var textPartCount = 0
+        var audioPartCount = 0
+        if (modelParts != null) {
+            for (i in 0 until modelParts.length()) {
+                val part = modelParts.optJSONObject(i) ?: continue
+                if (part.optString("text").isNotBlank()) textPartCount++
+                if (part.optJSONObject("inlineData") != null) audioPartCount++
             }
-        // modelTurn 里的翻译语音块直接忽略，不播放
+        }
+        // Content-free diagnostics: prove whether text arrives during playback or only
+        // after the server closes the speech turn, without logging private dialogue.
+        Log.d(
+            TAG,
+            "server_content input_chars=${inputText.length} output_chars=${outputText.length} " +
+                "model_text_parts=$textPartCount model_audio_parts=$audioPartCount " +
+                "generation_complete=${sc.optBoolean("generationComplete")} " +
+                "turn_complete=${sc.optBoolean("turnComplete")} interrupted=${sc.optBoolean("interrupted")} " +
+                "since_last_audio_ms=${if (lastAudioSentAtMs > 0L) (SystemClock.elapsedRealtime() - lastAudioSentAtMs).coerceAtLeast(0L) else -1L}",
+        )
+        if (!inputPaused && inputText.isNotEmpty()) listener.onInputText(inputText)
+        if (!inputPaused && outputText.isNotEmpty()) {
+            val now = SystemClock.elapsedRealtime()
+            if (firstOutputLogged.compareAndSet(false, true) && firstAudioSentAtMs > 0L) {
+                Log.i(
+                    TAG,
+                    "first_output_ms=${now - firstAudioSentAtMs} " +
+                        "since_last_audio_ms=${(now - lastAudioSentAtMs).coerceAtLeast(0L)}",
+                )
+            }
+            listener.onOutputText(outputText)
+        }
+        // Audio payloads are not subtitle text; only the server's output transcription is shown.
     }
 
     private fun buildSetupJson(): String =
@@ -599,11 +671,12 @@ class GeminiLiveClient(
         while (running.get()) {
             try {
                 val queued = queue.pollFirst(100, TimeUnit.MILLISECONDS) ?: continue
+                if (inputPaused) continue
                 if (!ready) {
                     synchronized(queue) {
                         // If fresh capture filled the queue while this chunk was in flight,
                         // keep the newer audio rather than exceeding the latency budget.
-                        if (queue.size < MAX_QUEUE) queue.offerFirst(queued)
+                        if (!inputPaused && queue.size < MAX_QUEUE) queue.offerFirst(queued)
                     }
                     Thread.sleep(60)
                     continue
@@ -616,18 +689,20 @@ class GeminiLiveClient(
                 val msg =
                     "{\"realtimeInput\":{\"audio\":{\"data\":\"$b64\",\"mimeType\":\"audio/pcm;rate=16000\"}}}"
                 val w = ws
-                if (w != null && w.send(msg)) {
+                if (!inputPaused && w != null && w.send(msg)) {
                     synchronized(sentRing) {
-                        sentRing.addLast(queued)
-                        while (sentRing.size > OVERLAP_CHUNKS) sentRing.removeFirst()
+                        if (!inputPaused) {
+                            sentRing.addLast(queued)
+                            while (sentRing.size > OVERLAP_CHUNKS) sentRing.removeFirst()
+                        }
                     }
                     val sentAt = SystemClock.elapsedRealtime()
                     if (firstAudioSentAtMs == 0L) firstAudioSentAtMs = sentAt
                     lastAudioSentAtMs = sentAt
                     StatusBus.chunksSent.incrementAndGet()
-                } else {
+                } else if (!inputPaused) {
                     synchronized(queue) {
-                        if (queue.size < MAX_QUEUE) queue.offerFirst(queued)
+                        if (!inputPaused && queue.size < MAX_QUEUE) queue.offerFirst(queued)
                     }
                     Thread.sleep(120)
                 }

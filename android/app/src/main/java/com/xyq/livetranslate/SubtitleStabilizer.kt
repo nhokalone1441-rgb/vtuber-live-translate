@@ -4,11 +4,10 @@ import android.os.Handler
 import android.os.SystemClock
 
 /**
- * 字幕稳定器：把 Live Translate 的碎片输出整理成「确认行 + 当前行」。
- * - 碎片边界重叠合并（服务端偶尔把结尾几个字重发一遍）
- * - 标点只作为内容保留，不立即切行；停顿达到 idleCommitMs 后整段转正
- * - 超过 maxCurrentChars 时才强制转正，避免长对话无限累积（高级设置可调）
- * 所有方法必须在主线程调用（handler 即主线程 Handler）。
+ * Keeps model context untouched while presenting live karaoke text.
+ * Completed sentence prefixes are promoted as soon as punctuation arrives;
+ * the unfinished suffix remains in the live row. Silence is only a fallback
+ * boundary for languages/dialogue that do not provide punctuation.
  */
 class SubtitleStabilizer(
     private val handler: Handler,
@@ -18,9 +17,8 @@ class SubtitleStabilizer(
     private val onRender: (confirmed: String, current: String) -> Unit,
 ) {
     companion object {
-        private val TERMINATORS = charArrayOf('。', '！', '？', '…', '～', '!', '?')
-        // Only suppress a likely reconnect replay that arrives almost immediately.
-        // Repeated dialogue after a pause is valid content and must not disappear.
+        private val TERMINATORS = charArrayOf('。', '！', '？', '…', '～', '!', '?', '.')
+        private const val CLOSING_MARKS = "\"'”’」』】）)]}"
         private const val DUPLICATE_WINDOW_MS = 900L
     }
 
@@ -29,7 +27,7 @@ class SubtitleStabilizer(
     private var lastCommittedAtMs = 0L
     private var currentStartedAtMs = 0L
     private val idleCommit = Runnable {
-        commit(force = true)
+        commitRemainder()
         render()
     }
 
@@ -37,7 +35,12 @@ class SubtitleStabilizer(
         if (t.isEmpty()) return
         if (current.isEmpty()) currentStartedAtMs = SystemClock.uptimeMillis()
         appendWithOverlap(t)
-        commit(force = current.length >= maxCurrentChars)
+
+        // Punctuation is a display boundary, not an audio/model boundary.
+        // The Live session continues receiving the full uninterrupted audio stream.
+        commitCompletedSentences()
+
+        if (current.length >= maxCurrentChars) commitRemainder()
         handler.removeCallbacks(idleCommit)
         if (current.isNotEmpty()) handler.postDelayed(idleCommit, idleCommitMs)
         render()
@@ -53,7 +56,6 @@ class SubtitleStabilizer(
 
     private fun render() = onRender(lastCommitted, current.toString())
 
-    /** 若新碎片的开头和缓冲区结尾重叠（>=2 字），只追加不重叠的部分。 */
     private fun appendWithOverlap(frag: String) {
         val tail = current.toString()
         var k = minOf(tail.length, frag.length)
@@ -61,48 +63,74 @@ class SubtitleStabilizer(
             if (tail.regionMatches(tail.length - k, frag, 0, k)) break
             k--
         }
-        if (k < 2) k = 0 // 单字重叠多半是巧合（"…的" + "的…"），不按重叠处理
+        if (k < 2) k = 0
         current.append(frag, k, frag.length)
     }
 
-    /** 将一个停顿边界内的整段话一次转正；不因句号/问号到来就逐句滚动。 */
-    private fun commit(force: Boolean) {
-        if (!force) return
-        val text = current.toString()
-        if (text.isBlank()) return
-
-        val committed = ArrayList<String>()
-        val now = SystemClock.uptimeMillis()
-        val isImmediateReplay = currentStartedAtMs - lastCommittedAtMs in 0..DUPLICATE_WINDOW_MS
-        for (s in splitSentences(text)) {
-            val sentence = s.trim()
-            if (sentence.isEmpty()) continue
-            // Live 模型偶尔会把非语言呻吟识别/翻译成拟声词；在字幕落盘前再做一道过滤。
-            if (SubtitleSpeechFilter.isNonSpeechVocalization(sentence)) continue
-            // 只抑制短时间内完全相同的重连回放；不能用 contains()，也不能永久丢弃重复台词。
-            if (isImmediateReplay && sentence == lastCommitted) continue
-            committed += s
+    private fun commitCompletedSentences() {
+        var boundary = -1
+        for (i in current.indices) {
+            if (current[i] in TERMINATORS) {
+                boundary = i + 1
+                while (boundary < current.length && current[boundary] in CLOSING_MARKS) boundary++
+            }
         }
+        if (boundary <= 0) return
 
+        val completed = current.substring(0, boundary)
+        current.delete(0, boundary)
+        commitText(completed)
+
+        if (current.isEmpty()) {
+            currentStartedAtMs = 0L
+        }
+    }
+
+    private fun commitRemainder() {
+        if (current.isEmpty()) return
+        val text = current.toString()
+        val startedAtMs = currentStartedAtMs
         current.setLength(0)
         currentStartedAtMs = 0L
-        if (committed.isNotEmpty()) {
-            // 保留块内原始标点与空格，一次交给历史区，避免每个短句快速顶走上一句。
-            lastCommitted = committed.joinToString(separator = "")
+        commitText(text, startedAtMs)
+    }
+
+    private fun commitText(text: String, startedAtMs: Long = currentStartedAtMs) {
+        if (text.isBlank()) return
+        val now = SystemClock.uptimeMillis()
+        val isImmediateReplay = startedAtMs - lastCommittedAtMs in 0..DUPLICATE_WINDOW_MS
+        val committed = splitSentences(text).map { it.trim() }.filter { sentence ->
+            sentence.isNotEmpty() &&
+                !SubtitleSpeechFilter.isNonSpeechVocalization(sentence) &&
+                !(isImmediateReplay && sentence == lastCommitted)
+        }
+        if (committed.isEmpty()) return
+
+        // Commit each completed sentence separately so the overlay can show the
+        // two most recent dialogue lines instead of one multi-sentence paragraph.
+        committed.forEach { sentence ->
+            lastCommitted = sentence
             lastCommittedAtMs = now
-            onCommit(lastCommitted)
+            onCommit(sentence)
         }
     }
 
     private fun splitSentences(s: String): List<String> {
         val out = ArrayList<String>()
         val cur = StringBuilder()
-        for (ch in s) {
+        var i = 0
+        while (i < s.length) {
+            val ch = s[i]
             cur.append(ch)
             if (ch in TERMINATORS) {
+                while (i + 1 < s.length && s[i + 1] in CLOSING_MARKS) {
+                    i++
+                    cur.append(s[i])
+                }
                 out.add(cur.toString())
                 cur.setLength(0)
             }
+            i++
         }
         if (cur.isNotBlank()) out.add(cur.toString())
         return out

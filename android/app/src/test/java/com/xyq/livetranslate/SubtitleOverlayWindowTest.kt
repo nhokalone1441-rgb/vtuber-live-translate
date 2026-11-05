@@ -95,6 +95,62 @@ class SubtitleOverlayWindowTest {
     }
 
     @Test
+    fun queuedLinesRotateInPairsAndEachPairStaysVisibleForTwoSeconds() {
+        val context = appContext()
+        SettingsStore.saveOverlayDisplayMs(context, 2_000)
+        val overlay = SubtitleOverlay(context, StatusBus.MODE_VIDEO)
+        try {
+            assertTrue(overlay.show())
+            overlay.addCommittedLine("Câu một.")
+            overlay.addCommittedLine("Câu hai.")
+            overlay.addCommittedLine("Câu ba.")
+            overlay.addCommittedLine("Câu bốn.")
+            overlay.setLines("Câu đang nói")
+            val rows = overlay.field<MutableList<TextView>>("subtitleRows")
+            val history = overlay.field<ArrayDeque<*>>("subtitleHistory")
+            val pending = overlay.field<ArrayDeque<*>>("pendingHistory")
+
+            assertEquals(listOf("Câu một.", "Câu hai.", "Câu đang nói"), rows.map { it.text.toString() })
+            assertEquals(2, history.size)
+            assertEquals(2, pending.size)
+
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_999))
+            assertEquals(listOf("Câu một.", "Câu hai.", "Câu đang nói"), rows.map { it.text.toString() })
+
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
+            assertEquals(listOf("Câu ba.", "Câu bốn.", "Câu đang nói"), rows.map { it.text.toString() })
+            assertEquals(2, history.size)
+            assertEquals(0, pending.size)
+
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_999))
+            assertEquals(listOf("Câu ba.", "Câu bốn.", "Câu đang nói"), rows.map { it.text.toString() })
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
+            assertEquals(listOf("", "", "Câu đang nói"), rows.map { it.text.toString() })
+        } finally {
+            overlay.hide()
+            SettingsStore.saveOverlayDisplayMs(context, SettingsStore.DEFAULT_OVERLAY_DISPLAY_MS)
+        }
+    }
+
+    @Test
+    fun pendingQueueCoalescesAtCapacityWithoutDroppingDialogue() {
+        val overlay = SubtitleOverlay(appContext(), StatusBus.MODE_VIDEO)
+        try {
+            assertTrue(overlay.show())
+            overlay.addCommittedLine("Đang hiển thị một.")
+            overlay.addCommittedLine("Đang hiển thị hai.")
+            repeat(65) { overlay.addCommittedLine("Chờ ${it + 1}.") }
+
+            val pending = overlay.field<ArrayDeque<String>>("pendingHistory")
+            assertEquals(64, pending.size)
+            assertEquals("Chờ 64.\nChờ 65.", pending.last())
+            assertEquals("Chờ 1.", pending.first())
+        } finally {
+            overlay.hide()
+        }
+    }
+
+    @Test
     fun repeatedIdenticalDialogueCreatesTwoSeparateHistoryEntries() {
         val context = appContext()
         SettingsStore.saveOverlayDisplayMs(context, 5_000)
@@ -117,11 +173,11 @@ class SubtitleOverlayWindowTest {
     }
 
     @Test
-    fun overlayDurationDefaultsToOneSecondAndClampsToHalfThroughFiveSeconds() {
+    fun overlayDurationDefaultsToTwoSecondsAndClampsToHalfThroughFiveSeconds() {
         val context = appContext()
         context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit()
             .remove("overlaySubtitleDisplayMs").apply()
-        assertEquals(1_000, SettingsStore.overlayDisplayMs(context))
+        assertEquals(2_000, SettingsStore.overlayDisplayMs(context))
         SettingsStore.saveOverlayDisplayMs(context, 100)
         assertEquals(500, SettingsStore.overlayDisplayMs(context))
         SettingsStore.saveOverlayDisplayMs(context, 9_000)

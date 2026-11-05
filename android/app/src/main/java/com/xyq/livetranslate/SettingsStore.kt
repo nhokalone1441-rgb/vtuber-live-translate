@@ -63,19 +63,20 @@ object SettingsStore {
     const val DEFAULT_STAB_MAX_CHARS = 500
     const val DEFAULT_HISTORY_DISPLAY_SECONDS = 3
 
-    const val DEFAULT_LIVE_ENGINE = GeminiLiveClient.ENGINE_PROMPTED
+    const val DEFAULT_LIVE_ENGINE = GeminiLiveClient.ENGINE_TRANSLATE
 
-    private const val LIVE_ENGINE_PROMPT_MIGRATION_KEY = "liveEnginePromptMigrationV266"
+    private const val LIVE_ENGINE_ROLLBACK_MIGRATION_KEY = "liveEngineRollbackMigrationV268"
 
     fun liveEngine(c: Context): String {
         val settings = prefs(c)
-        // The translation-first request is intentional: migrate existing installs once so the
-        // detailed Vietnamese localization prompt is actually sent to Gemini 3.8 Live.
-        // After this one-time migration, the user may still select the legacy dedicated engine.
-        if (!settings.getBoolean(LIVE_ENGINE_PROMPT_MIGRATION_KEY, false)) {
+        // Roll back the experimental prompt-driven 3.8 engine as the default.
+        // The dedicated 3.5 Live Translate engine is designed for continuous speech translation;
+        // 3.8 may defer output until a speech turn closes, which is unacceptable for live subtitles.
+        // Migrate once so existing installs do not remain pinned to the regressed engine.
+        if (!settings.getBoolean(LIVE_ENGINE_ROLLBACK_MIGRATION_KEY, false)) {
             settings.edit()
-                .putString("liveTranslationEngine", GeminiLiveClient.ENGINE_PROMPTED)
-                .putBoolean(LIVE_ENGINE_PROMPT_MIGRATION_KEY, true)
+                .putString("liveTranslationEngine", GeminiLiveClient.ENGINE_TRANSLATE)
+                .putBoolean(LIVE_ENGINE_ROLLBACK_MIGRATION_KEY, true)
                 .apply()
         }
         return settings.getString("liveTranslationEngine", DEFAULT_LIVE_ENGINE)
@@ -101,7 +102,7 @@ object SettingsStore {
     }
 
     // 悬浮字幕完成行的停留时间；与 App 内历史记录及实时字幕处理完全独立。
-    const val DEFAULT_OVERLAY_DISPLAY_MS = 1_000
+    const val DEFAULT_OVERLAY_DISPLAY_MS = 2_000
 
     fun overlayDisplayMs(c: Context): Int =
         prefs(c).getInt("overlaySubtitleDisplayMs", DEFAULT_OVERLAY_DISPLAY_MS).coerceIn(500, 5_000)

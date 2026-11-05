@@ -14,24 +14,55 @@ class SubtitleStabilizerTest {
     @Test
     fun keepsEverySentenceFromOneServerFragment() {
         val renders = mutableListOf<Pair<String, String>>()
+        val committed = mutableListOf<String>()
         val stabilizer = SubtitleStabilizer(
             handler = Handler(Looper.getMainLooper()),
+            onCommit = { committed += it },
             onRender = { confirmed, current -> renders += confirmed to current },
         )
 
         stabilizer.onFragment("第一句。第二句！第三句？")
 
-        // Punctuation must not roll the subtitle row immediately; keep the full utterance live.
-        assertEquals("", renders.last().first)
-        assertEquals("第一句。第二句！第三句？", renders.last().second)
-
-        shadowOf(Looper.getMainLooper()).idleFor(700, TimeUnit.MILLISECONDS)
-        assertEquals("", renders.last().first)
-        assertEquals("第一句。第二句！第三句？", renders.last().second)
-
-        shadowOf(Looper.getMainLooper()).idleFor(800, TimeUnit.MILLISECONDS)
-        assertEquals("第一句。第二句！第三句？", renders.last().first)
+        // Complete clauses promote immediately and remain separate history rows.
+        assertEquals(listOf("第一句。", "第二句！", "第三句？"), committed)
+        assertEquals("第三句？", renders.last().first)
         assertEquals("", renders.last().second)
+
+        shadowOf(Looper.getMainLooper()).idleFor(1_500, TimeUnit.MILLISECONDS)
+        assertEquals("第三句？", renders.last().first)
+        assertEquals("", renders.last().second)
+    }
+
+    @Test
+    fun englishPeriodCommitsAndKeepsClosingQuoteAttached() {
+        val committed = mutableListOf<String>()
+        val stabilizer = SubtitleStabilizer(
+            handler = Handler(Looper.getMainLooper()),
+            onCommit = { committed += it },
+            onRender = { _, _ -> },
+        )
+
+        stabilizer.onFragment("He said, \"Go now!\" Then he left.")
+
+        assertEquals(listOf("He said, \"Go now!\"", "Then he left."), committed)
+    }
+
+    @Test
+    fun completedSentenceMovesToHistoryWhileUnfinishedWordsStayLive() {
+        val renders = mutableListOf<Pair<String, String>>()
+        val committed = mutableListOf<String>()
+        val stabilizer = SubtitleStabilizer(
+            handler = Handler(Looper.getMainLooper()),
+            onCommit = { committed += it },
+            onRender = { confirmed, current -> renders += confirmed to current },
+        )
+
+        stabilizer.onFragment("Tôi biết rồi.")
+        stabilizer.onFragment(" Nhưng mà")
+
+        assertEquals(listOf("Tôi biết rồi."), committed)
+        assertEquals("Tôi biết rồi.", renders.last().first)
+        assertEquals(" Nhưng mà", renders.last().second)
     }
 
     @Test
@@ -148,17 +179,40 @@ class SubtitleStabilizerTest {
     @Test
     fun preservesMeaningfulExclamationAndDialogue() {
         val renders = mutableListOf<Pair<String, String>>()
+        val committed = mutableListOf<String>()
         val stabilizer = SubtitleStabilizer(
             handler = Handler(Looper.getMainLooper()),
             maxCurrentChars = 1,
+            onCommit = { committed += it },
             onRender = { confirmed, current -> renders += confirmed to current },
         )
 
         stabilizer.onFragment("Á! Có ai không?")
 
-        assertEquals("Á! Có ai không?", renders.last().first)
+        // Dialogue punctuation creates two history entries; the exclamation
+        // must survive the vocalization filter rather than being discarded.
+        assertEquals(listOf("Á!", "Có ai không?"), committed)
+        assertEquals("Có ai không?", renders.last().first)
         assertEquals("", renders.last().second)
     }
+
+    @Test
+    fun rendersVietnameseFragmentsImmediatelyWithoutWaitingForPunctuation() {
+        val renders = mutableListOf<Pair<String, String>>()
+        val stabilizer = SubtitleStabilizer(
+            handler = Handler(Looper.getMainLooper()),
+            onRender = { confirmed, current -> renders += confirmed to current },
+        )
+
+        stabilizer.onFragment("Anh yêu")
+        assertEquals("", renders.last().first)
+        assertEquals("Anh yêu", renders.last().second)
+
+        stabilizer.onFragment(" em")
+        assertEquals("Anh yêu em", renders.last().second)
+        assertEquals("", renders.last().first)
+    }
+
 
     @Test
     fun suppressesBareMoanSyllableButKeepsExclaimedAh() {

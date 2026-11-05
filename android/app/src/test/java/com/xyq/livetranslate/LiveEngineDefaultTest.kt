@@ -28,19 +28,19 @@ class LiveEngineDefaultTest {
     }
 
     @Test
-    fun firstLaunchSelectsPromptAwareEngine() {
-        assertEquals(GeminiLiveClient.ENGINE_PROMPTED, SettingsStore.liveEngine(context))
-        assertEquals(GeminiLiveClient.PROMPTED_MODEL, GeminiLiveClient.modelForEngine(SettingsStore.liveEngine(context)))
+    fun firstLaunchSelectsContinuousTranslateEngine() {
+        assertEquals(GeminiLiveClient.ENGINE_TRANSLATE, SettingsStore.liveEngine(context))
+        assertEquals(GeminiLiveClient.MODEL, GeminiLiveClient.modelForEngine(SettingsStore.liveEngine(context)))
     }
 
     @Test
-    fun existingInstallMigratesToPromptAwareEngineOnce() {
-        preferences.edit().putString("liveTranslationEngine", GeminiLiveClient.ENGINE_TRANSLATE).commit()
+    fun existingInstallMigratesBackToContinuousTranslateEngineOnce() {
+        preferences.edit().putString("liveTranslationEngine", GeminiLiveClient.ENGINE_PROMPTED).commit()
 
-        assertEquals(GeminiLiveClient.ENGINE_PROMPTED, SettingsStore.liveEngine(context))
+        assertEquals(GeminiLiveClient.ENGINE_TRANSLATE, SettingsStore.liveEngine(context))
 
         // The user can still deliberately switch back after the one-time migration.
-        SettingsStore.saveLiveEngine(context, GeminiLiveClient.ENGINE_TRANSLATE)
-        assertEquals(GeminiLiveClient.ENGINE_TRANSLATE, SettingsStore.liveEngine(context))
+        SettingsStore.saveLiveEngine(context, GeminiLiveClient.ENGINE_PROMPTED)
+        assertEquals(GeminiLiveClient.ENGINE_PROMPTED, SettingsStore.liveEngine(context))
     }
 }

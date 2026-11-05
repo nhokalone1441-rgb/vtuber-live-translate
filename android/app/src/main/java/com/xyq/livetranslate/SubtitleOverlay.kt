@@ -46,6 +46,7 @@ class SubtitleOverlay(
     // Two finalized dialogue rows plus one live karaoke row.
     private data class HistoryEntry(val text: String, val createdAt: Long)
     private val subtitleHistory = ArrayDeque<HistoryEntry>()
+    private val pendingHistory = ArrayDeque<String>()
     private val historyHandler = Handler(Looper.getMainLooper())
     private val historyExpiry = Runnable { pruneExpiredHistory(); renderLines(); scheduleHistoryExpiry() }
     private var dot: View? = null
@@ -61,6 +62,8 @@ class SubtitleOverlay(
 
     companion object {
         private const val SUBTITLE_HISTORY_LINES = 3
+        // Keep the waiting list bounded; once full, coalesce its tail without losing dialogue.
+        private const val MAX_PENDING_HISTORY = 64
 
         /** 收起后看得见的那根贴边小蓝条有多宽。 */
         const val COLLAPSED_BAR_WIDTH_DP = 10
@@ -238,20 +241,34 @@ class SubtitleOverlay(
         collapsed = false
         controlsVisible = false
         historyHandler.removeCallbacks(historyExpiry)
+        pendingHistory.clear()
+        subtitleHistory.clear()
     }
 
     /** A commit event is distinct from the rendered text: identical dialogue may be spoken twice. */
     fun addCommittedLine(text: String) {
         val committed = text.trim()
         if (committed.isEmpty()) return
-        // Keep the entire finalized batch as one dialogue block. A batch may contain
-        // several sentences; splitting it into one-sentence slots made the history
-        // disappear too quickly during natural multi-sentence speech.
+        // Keep every sentence for its full display interval. If several completed
+        // sentences arrive together, queue overflow rather than evicting unread lines.
         pruneExpiredHistory()
-        subtitleHistory.addLast(HistoryEntry(committed, android.os.SystemClock.uptimeMillis()))
-        while (subtitleHistory.size > SUBTITLE_HISTORY_LINES - 1) subtitleHistory.removeFirst()
+        if (pendingHistory.isNotEmpty() || subtitleHistory.size >= SUBTITLE_HISTORY_LINES - 1) {
+            enqueuePendingHistory(committed)
+        } else {
+            subtitleHistory.addLast(HistoryEntry(committed, android.os.SystemClock.uptimeMillis()))
+        }
         scheduleHistoryExpiry()
         renderLines()
+    }
+
+    private fun enqueuePendingHistory(text: String) {
+        if (pendingHistory.size < MAX_PENDING_HISTORY) {
+            pendingHistory.addLast(text)
+            return
+        }
+        // Never evict unread text: coalesce the newest waiting items into one readable block.
+        val tail = pendingHistory.removeLast()
+        pendingHistory.addLast("$tail\n$text")
     }
 
     fun setLines(current: String) {
@@ -260,10 +277,19 @@ class SubtitleOverlay(
         renderLines()
     }
 
+    /** Clear the in-progress karaoke row immediately when playback translation is paused. */
+    fun clearLiveLine() {
+        latestCurrent = ""
+        renderLines()
+    }
+
     private fun pruneExpiredHistory() {
         val now = android.os.SystemClock.uptimeMillis()
         val durationMs = SettingsStore.overlayDisplayMs(context).toLong()
         while (subtitleHistory.isNotEmpty() && subtitleHistory.first().createdAt + durationMs <= now) subtitleHistory.removeFirst()
+        while (subtitleHistory.size < SUBTITLE_HISTORY_LINES - 1 && pendingHistory.isNotEmpty()) {
+            subtitleHistory.addLast(HistoryEntry(pendingHistory.removeFirst(), now))
+        }
     }
 
     private fun scheduleHistoryExpiry() {
@@ -366,12 +392,6 @@ class SubtitleOverlay(
                 },
             )
             view.visibility = if (line.isEmpty()) View.GONE else View.VISIBLE
-        }
-        if (rows.isEmpty()) {
-            subtitleRows.lastOrNull()?.apply {
-                text = context.getString(R.string.rt_overlay_waiting_subtitles)
-                visibility = View.VISIBLE
-            }
         }
     }
 
