@@ -55,10 +55,10 @@ class SubtitleOverlayWindowTest {
             assertTrue(overlay.show())
             val rows = overlay.field<MutableList<TextView>>("subtitleRows")
             assertEquals(3, rows.size)
-            rows.forEach { row ->
-                assertEquals(Int.MAX_VALUE, row.maxLines)
-                assertNull(row.ellipsize)
-            }
+            assertEquals(3, rows[0].maxLines)
+            assertNull(rows[0].ellipsize)
+            assertEquals(View.GONE, rows[1].visibility)
+            assertEquals(View.GONE, rows[2].visibility)
         } finally {
             overlay.hide()
         }
@@ -81,13 +81,15 @@ class SubtitleOverlayWindowTest {
             assertEquals(block, history.first().let {
                 it!!::class.java.getDeclaredField("text").apply { isAccessible = true }.get(it)
             })
-            assertEquals("第五句正在说", rows[2].text.toString())
+            assertEquals(block, rows[0].text.toString())
+            assertEquals(View.GONE, rows[1].visibility)
+            assertEquals(View.GONE, rows[2].visibility)
 
             shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(2_999))
             assertEquals(1, history.size)
             shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
             assertEquals(0, history.size)
-            assertEquals("第五句正在说", rows[2].text.toString())
+            assertEquals(block, rows[0].text.toString())
         } finally {
             overlay.hide()
             SettingsStore.saveOverlayDisplayMs(context, SettingsStore.DEFAULT_OVERLAY_DISPLAY_MS)
@@ -101,32 +103,32 @@ class SubtitleOverlayWindowTest {
         val overlay = SubtitleOverlay(context, StatusBus.MODE_VIDEO)
         try {
             assertTrue(overlay.show())
-            overlay.addCommittedLine("Câu một.")
-            overlay.addCommittedLine("Câu hai.")
-            overlay.addCommittedLine("Câu ba.")
-            overlay.addCommittedLine("Câu bốn.")
-            overlay.setLines("Câu đang nói")
+            overlay.addCommittedLine("Đoạn hội thoại một. Câu tiếp theo.")
+            overlay.addCommittedLine("Đoạn hội thoại hai.")
+            overlay.addCommittedLine("Đoạn hội thoại ba.")
             val rows = overlay.field<MutableList<TextView>>("subtitleRows")
             val history = overlay.field<ArrayDeque<*>>("subtitleHistory")
             val pending = overlay.field<ArrayDeque<*>>("pendingHistory")
 
-            assertEquals(listOf("Câu một.", "Câu hai.", "Câu đang nói"), rows.map { it.text.toString() })
-            assertEquals(2, history.size)
+            assertEquals("Đoạn hội thoại một. Câu tiếp theo.", rows[0].text.toString())
+            assertEquals("", rows[1].text.toString())
+            assertEquals("", rows[2].text.toString())
+            assertEquals(1, history.size)
             assertEquals(2, pending.size)
 
             shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_999))
-            assertEquals(listOf("Câu một.", "Câu hai.", "Câu đang nói"), rows.map { it.text.toString() })
+            assertEquals("Đoạn hội thoại một. Câu tiếp theo.", rows[0].text.toString())
 
             shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
-            assertEquals(listOf("Câu ba.", "Câu bốn.", "Câu đang nói"), rows.map { it.text.toString() })
-            assertEquals(2, history.size)
-            assertEquals(0, pending.size)
+            assertEquals("Đoạn hội thoại hai.", rows[0].text.toString())
+            assertEquals(1, history.size)
+            assertEquals(1, pending.size)
 
-            // Robolectric may dispatch the exact-deadline callback during idleFor's final tick.
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_998))
-            assertEquals(listOf("Câu ba.", "Câu bốn.", "Câu đang nói"), rows.map { it.text.toString() })
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(2))
-            assertEquals(listOf("", "", "Câu đang nói"), rows.map { it.text.toString() })
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))
+            assertEquals("Đoạn hội thoại ba.", rows[0].text.toString())
+            assertEquals(0, pending.size)
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))
+            assertEquals("", rows[0].text.toString())
         } finally {
             overlay.hide()
             SettingsStore.saveOverlayDisplayMs(context, SettingsStore.DEFAULT_OVERLAY_DISPLAY_MS)
@@ -163,10 +165,11 @@ class SubtitleOverlayWindowTest {
             overlay.addCommittedLine("Go!")
 
             val history = overlay.field<ArrayDeque<*>>("subtitleHistory")
+            val pending = overlay.field<ArrayDeque<String>>("pendingHistory")
             val rows = overlay.field<MutableList<TextView>>("subtitleRows")
-            assertEquals(2, history.size)
-            assertEquals("Go!", rows[1].text.toString())
-            assertEquals("Go!", rows[2].text.toString())
+            assertEquals(1, history.size)
+            assertEquals(listOf("Go!"), pending.toList())
+            assertEquals("Go!", rows[0].text.toString())
         } finally {
             overlay.hide()
             SettingsStore.saveOverlayDisplayMs(context, SettingsStore.DEFAULT_OVERLAY_DISPLAY_MS)
@@ -174,15 +177,15 @@ class SubtitleOverlayWindowTest {
     }
 
     @Test
-    fun overlayDurationDefaultsToTwoSecondsAndClampsToHalfThroughFiveSeconds() {
+    fun overlayDurationDefaultsToThreeAndAHalfSecondsAndClampsToTwoThroughEightSeconds() {
         val context = appContext()
         context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit()
             .remove("overlaySubtitleDisplayMs").apply()
-        assertEquals(2_000, SettingsStore.overlayDisplayMs(context))
+        assertEquals(3_500, SettingsStore.overlayDisplayMs(context))
         SettingsStore.saveOverlayDisplayMs(context, 100)
-        assertEquals(500, SettingsStore.overlayDisplayMs(context))
+        assertEquals(2_000, SettingsStore.overlayDisplayMs(context))
         SettingsStore.saveOverlayDisplayMs(context, 9_000)
-        assertEquals(5_000, SettingsStore.overlayDisplayMs(context))
+        assertEquals(8_000, SettingsStore.overlayDisplayMs(context))
         SettingsStore.saveOverlayDisplayMs(context, SettingsStore.DEFAULT_OVERLAY_DISPLAY_MS)
     }
 
@@ -203,6 +206,7 @@ class SubtitleOverlayWindowTest {
             assertEquals(block, history.first()!!.let {
                 it::class.java.getDeclaredField("text").apply { isAccessible = true }.get(it)
             })
+            assertEquals(block, overlay.field<MutableList<TextView>>("subtitleRows")[0].text.toString())
 
             shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(4))
             assertEquals(1, history.size)
