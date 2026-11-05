@@ -239,6 +239,25 @@ object PromptBuilder {
             "输入来自视频或其他应用的连续音频；结合前后文保持字幕连贯。"
     }
 
+    /**
+     * Chinese-to-Vietnamese dialogue needs more than a generic natural-translation request:
+     * Chinese topic omission and sentence-final particles can sound stiff when translated literally.
+     * Keep this specialization narrow so other language pairs remain unchanged.
+     */
+    private fun directionStyleInstruction(sourceCode: String, targetCode: String): String? {
+        if (sourceCode != "zh" || targetCode != "vi") return null
+        return """
+            【中文→越南语口语转换规则】
+            - 将原意转换成越南人日常真实对话会使用的表达，不保留中文语序；优先按越南语习惯重组句子。
+            - 中文常省略主语、宾语或指代。只有前后文明确时才补出越南语人称；关系不明就省略或用中性称呼，绝不猜测亲疏、年龄或性别。
+            - 根据语气和语境处理“啊、呢、吧、嘛、哦、诶”等语气词：有实际态度/语用作用时用自然越南语表达，没有独立意义时可省略；禁止逐字逐词固定映射。
+            - 避免生硬直译、中文式倒装、滥用被动句、重复代词、书面公文词和不必要的汉越词。能用日常越南语短句表达时，不要写成教科书或机器翻译腔。
+            - 允许调整语序、拆分或合并短分句，使对白顺口易读；但不得删掉事实、条件、否定、因果、对象或说话人的态度。
+            - 保留原文的口语程度、粗俗程度、幽默和情绪力度；不要擅自加网络俚语、卖萌或夸张语气。
+            - 对话字幕优先使用自然、简洁的越南语口吻，而不是逐字对应的书面译文；不要为了简短牺牲信息。
+        """.trimIndent()
+    }
+
     fun build(
         scene: ScenePromptPreset,
         context: SessionPromptContext = SessionPromptContext(),
@@ -259,6 +278,8 @@ object PromptBuilder {
             } else {
                 appendLine("输入语音应为${sourceLanguage.promptLabel}；将其翻译为${targetLanguage.promptLabel}。")
             }
+            directionStyleInstruction(normalized.sourceLanguageCode, normalized.targetLanguageCode)
+                ?.let { appendLine(it); appendLine() }
             appendLine()
             appendLine("【输入模式：${normalized.mode.promptLabel}】")
             appendLine(modeInstruction(normalized.mode))
