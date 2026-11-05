@@ -21,17 +21,31 @@ class SubtitleStabilizerTest {
 
         stabilizer.onFragment("第一句。第二句！第三句？")
 
-        // Punctuation must not roll the subtitle row immediately; keep the full utterance live.
-        assertEquals("", renders.last().first)
-        assertEquals("第一句。第二句！第三句？", renders.last().second)
-
-        shadowOf(Looper.getMainLooper()).idleFor(700, TimeUnit.MILLISECONDS)
-        assertEquals("", renders.last().first)
-        assertEquals("第一句。第二句！第三句？", renders.last().second)
-
-        shadowOf(Looper.getMainLooper()).idleFor(800, TimeUnit.MILLISECONDS)
+        // Complete clauses promote immediately; no silence is required.
         assertEquals("第一句。第二句！第三句？", renders.last().first)
         assertEquals("", renders.last().second)
+
+        shadowOf(Looper.getMainLooper()).idleFor(1_500, TimeUnit.MILLISECONDS)
+        assertEquals("第一句。第二句！第三句？", renders.last().first)
+        assertEquals("", renders.last().second)
+    }
+
+    @Test
+    fun completedSentenceMovesToHistoryWhileUnfinishedWordsStayLive() {
+        val renders = mutableListOf<Pair<String, String>>()
+        val committed = mutableListOf<String>()
+        val stabilizer = SubtitleStabilizer(
+            handler = Handler(Looper.getMainLooper()),
+            onCommit = { committed += it },
+            onRender = { confirmed, current -> renders += confirmed to current },
+        )
+
+        stabilizer.onFragment("Tôi biết rồi.")
+        stabilizer.onFragment(" Nhưng mà")
+
+        assertEquals(listOf("Tôi biết rồi."), committed)
+        assertEquals("Tôi biết rồi.", renders.last().first)
+        assertEquals(" Nhưng mà", renders.last().second)
     }
 
     @Test
