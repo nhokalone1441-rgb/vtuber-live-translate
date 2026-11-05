@@ -136,6 +136,30 @@ class SubtitleOverlayWindowTest {
     }
 
     @Test
+    fun pauseClearsVisibleAndQueuedDialogueBlocksSoResumeStartsFresh() {
+        val overlay = SubtitleOverlay(appContext(), StatusBus.MODE_VIDEO)
+        try {
+            assertTrue(overlay.show())
+            overlay.addCommittedLine("Đoạn cũ đang hiển thị.")
+            overlay.addCommittedLine("Đoạn cũ đang chờ.")
+            overlay.clearLiveLine()
+
+            val rows = overlay.field<MutableList<TextView>>("subtitleRows")
+            val history = overlay.field<ArrayDeque<*>>("subtitleHistory")
+            val pending = overlay.field<ArrayDeque<String>>("pendingHistory")
+            assertEquals(0, history.size)
+            assertEquals(0, pending.size)
+            assertEquals("", rows[0].text.toString())
+            assertEquals(View.GONE, rows[0].visibility)
+
+            overlay.addCommittedLine("Đoạn mới sau khi tiếp tục.")
+            assertEquals("Đoạn mới sau khi tiếp tục.", rows[0].text.toString())
+        } finally {
+            overlay.hide()
+        }
+    }
+
+    @Test
     fun pendingQueueCoalescesAtCapacityWithoutDroppingDialogue() {
         val overlay = SubtitleOverlay(appContext(), StatusBus.MODE_VIDEO)
         try {
