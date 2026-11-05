@@ -101,13 +101,13 @@ object SettingsStore {
     }
 
     // 悬浮字幕完成行的停留时间；与 App 内历史记录及实时字幕处理完全独立。
-    const val DEFAULT_OVERLAY_DISPLAY_MS = 2_000
+    const val DEFAULT_OVERLAY_DISPLAY_MS = 3_500
 
     fun overlayDisplayMs(c: Context): Int =
-        prefs(c).getInt("overlaySubtitleDisplayMs", DEFAULT_OVERLAY_DISPLAY_MS).coerceIn(500, 5_000)
+        prefs(c).getInt("overlaySubtitleDisplayMs", DEFAULT_OVERLAY_DISPLAY_MS).coerceIn(2_000, 8_000)
 
     fun saveOverlayDisplayMs(c: Context, millis: Int) {
-        prefs(c).edit().putInt("overlaySubtitleDisplayMs", millis.coerceIn(500, 5_000)).apply()
+        prefs(c).edit().putInt("overlaySubtitleDisplayMs", millis.coerceIn(2_000, 8_000)).apply()
         StatusBus.styleVersion.incrementAndGet()
     }
 
