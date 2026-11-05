@@ -192,6 +192,24 @@ class SubtitleStabilizerTest {
     }
 
     @Test
+    fun rendersVietnameseFragmentsImmediatelyWithoutWaitingForPunctuation() {
+        val renders = mutableListOf<Pair<String, String>>()
+        val stabilizer = SubtitleStabilizer(
+            handler = Handler(Looper.getMainLooper()),
+            onRender = { confirmed, current -> renders += confirmed to current },
+        )
+
+        stabilizer.onFragment("Anh yêu")
+        assertEquals("", renders.last().first)
+        assertEquals("Anh yêu", renders.last().second)
+
+        stabilizer.onFragment(" em")
+        assertEquals("Anh yêu em", renders.last().second)
+        assertEquals("", renders.last().first)
+    }
+
+
+    @Test
     fun suppressesBareMoanSyllableButKeepsExclaimedAh() {
         assertEquals(true, SubtitleSpeechFilter.isNonSpeechVocalization("á"))
         assertEquals(false, SubtitleSpeechFilter.isNonSpeechVocalization("Á!"))
