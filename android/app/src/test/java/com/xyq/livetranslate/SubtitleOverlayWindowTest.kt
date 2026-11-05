@@ -65,51 +65,44 @@ class SubtitleOverlayWindowTest {
     }
 
     @Test
-    fun rapidSentencesStayQueuedAndAdvanceInChronologicalPages() {
+    fun rapidSentencesKeepOnlyTwoRecentDialogueLinesAndOneLiveLine() {
         val overlay = SubtitleOverlay(appContext(), StatusBus.MODE_VIDEO)
         try {
             assertTrue(overlay.show())
-            overlay.setLines("第一句。第二句！第三句？第四句。", "")
-            val queue = overlay.field<ArrayDeque<String>>("subtitleQueue")
+            overlay.setLines("第一句。第二句！第三句？第四句。", "第五句正在说")
             val rows = overlay.field<MutableList<TextView>>("subtitleRows")
 
-            assertEquals(4, queue.size)
-            assertEquals("第一句。", rows[0].text.toString())
-            assertEquals("第二句！", rows[1].text.toString())
-            assertEquals("第三句？", rows[2].text.toString())
-            assertEquals("+1", overlay.field<TextView>("backlogLabel").text.toString())
+            assertEquals(3, rows.size)
+            assertEquals("第三句？", rows[0].text.toString())
+            assertEquals("第四句。", rows[1].text.toString())
+            assertEquals("第五句正在说", rows[2].text.toString())
 
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(2500))
-
-            assertEquals(1, queue.size)
-            assertEquals("第四句。", rows[2].text.toString())
-            assertEquals(View.GONE, overlay.field<TextView>("backlogLabel").visibility)
-
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(2500))
-            assertTrue(queue.isEmpty())
-            assertEquals("第二句！", rows[0].text.toString())
-            assertEquals("第三句？", rows[1].text.toString())
-            assertEquals("第四句。", rows[2].text.toString())
+            // No delayed page replay: the two finalized lines remain stable while karaoke updates.
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(10_000))
+            assertEquals("第三句？", rows[0].text.toString())
+            assertEquals("第四句。", rows[1].text.toString())
+            assertEquals("第五句正在说", rows[2].text.toString())
         } finally {
             overlay.hide()
         }
     }
 
     @Test
-    fun longSubtitlePagesAreNotAdvancedBeforeTheirReadingTime() {
+    fun longDialogueLinesStayReadableAndNewestTwoRemainVisible() {
         val overlay = SubtitleOverlay(appContext(), StatusBus.MODE_VIDEO)
         try {
             assertTrue(overlay.show())
             val longSentence = "甲".repeat(59) + "。"
             overlay.setLines("$longSentence$longSentence$longSentence", "")
-            val queue = overlay.field<ArrayDeque<String>>("subtitleQueue")
+            val rows = overlay.field<MutableList<TextView>>("subtitleRows")
 
-            assertEquals(3, queue.size)
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(9_500))
-            assertEquals("A long page must not be forced off-screen before its reading time", 3, queue.size)
+            assertEquals("", rows[0].text.toString())
+            assertEquals(longSentence, rows[1].text.toString())
+            assertEquals(longSentence, rows[2].text.toString())
 
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_000))
-            assertTrue(queue.isEmpty())
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(10_000))
+            assertEquals(longSentence, rows[1].text.toString())
+            assertEquals(longSentence, rows[2].text.toString())
         } finally {
             overlay.hide()
         }
