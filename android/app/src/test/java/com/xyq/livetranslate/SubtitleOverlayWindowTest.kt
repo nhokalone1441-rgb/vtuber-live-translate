@@ -122,9 +122,10 @@ class SubtitleOverlayWindowTest {
             assertEquals(2, history.size)
             assertEquals(0, pending.size)
 
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_999))
+            // Robolectric may dispatch the exact-deadline callback during idleFor's final tick.
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1_998))
             assertEquals(listOf("Câu ba.", "Câu bốn.", "Câu đang nói"), rows.map { it.text.toString() })
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(2))
             assertEquals(listOf("", "", "Câu đang nói"), rows.map { it.text.toString() })
         } finally {
             overlay.hide()
