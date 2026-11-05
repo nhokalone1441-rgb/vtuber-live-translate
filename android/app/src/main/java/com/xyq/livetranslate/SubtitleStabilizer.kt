@@ -14,6 +14,7 @@ class SubtitleStabilizer(
     private val handler: Handler,
     private val idleCommitMs: Long = SettingsStore.DEFAULT_STAB_IDLE_MS.toLong(),
     private val maxCurrentChars: Int = SettingsStore.DEFAULT_STAB_MAX_CHARS,
+    private val onCommit: (text: String) -> Unit = {},
     private val onRender: (confirmed: String, current: String) -> Unit,
 ) {
     companion object {
@@ -89,6 +90,7 @@ class SubtitleStabilizer(
             // 保留块内原始标点与空格，一次交给历史区，避免每个短句快速顶走上一句。
             lastCommitted = committed.joinToString(separator = "")
             lastCommittedAtMs = now
+            onCommit(lastCommitted)
         }
     }
 
