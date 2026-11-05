@@ -62,6 +62,8 @@ class SubtitleOverlay(
 
     companion object {
         private const val SUBTITLE_HISTORY_LINES = 3
+        // Keep the waiting list bounded; once full, coalesce its tail without losing dialogue.
+        private const val MAX_PENDING_HISTORY = 64
 
         /** 收起后看得见的那根贴边小蓝条有多宽。 */
         const val COLLAPSED_BAR_WIDTH_DP = 10
@@ -250,13 +252,23 @@ class SubtitleOverlay(
         // Keep every sentence for its full display interval. If several completed
         // sentences arrive together, queue overflow rather than evicting unread lines.
         pruneExpiredHistory()
-        if (subtitleHistory.size < SUBTITLE_HISTORY_LINES - 1) {
-            subtitleHistory.addLast(HistoryEntry(committed, android.os.SystemClock.uptimeMillis()))
+        if (pendingHistory.isNotEmpty() || subtitleHistory.size >= SUBTITLE_HISTORY_LINES - 1) {
+            enqueuePendingHistory(committed)
         } else {
-            pendingHistory.addLast(committed)
+            subtitleHistory.addLast(HistoryEntry(committed, android.os.SystemClock.uptimeMillis()))
         }
         scheduleHistoryExpiry()
         renderLines()
+    }
+
+    private fun enqueuePendingHistory(text: String) {
+        if (pendingHistory.size < MAX_PENDING_HISTORY) {
+            pendingHistory.addLast(text)
+            return
+        }
+        // Never evict unread text: coalesce the newest waiting items into one readable block.
+        val tail = pendingHistory.removeLast()
+        pendingHistory.addLast("$tail\n$text")
     }
 
     fun setLines(current: String) {
