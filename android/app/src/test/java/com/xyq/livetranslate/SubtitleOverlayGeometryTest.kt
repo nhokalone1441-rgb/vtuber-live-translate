@@ -7,6 +7,32 @@ import org.junit.Test
 
 class SubtitleOverlayGeometryTest {
     @Test
+    fun livePartialTranslationIsShownImmediatelyBelowCompletedLines() {
+        assertEquals(
+            listOf("已完成第一句。", "已完成第二句！", "正在翻译的部分"),
+            SubtitleOverlayPresentation.visibleRows(
+                pending = listOf("已完成第一句。", "已完成第二句！", "等待中的第三句。"),
+                history = emptyList(),
+                current = "正在翻译的部分",
+                maxRows = 3,
+            ),
+        )
+    }
+
+    @Test
+    fun livePartialTranslationKeepsRecentHistoryWhenQueueIsEmpty() {
+        assertEquals(
+            listOf("上一句。", "最新已完成句！", "当前未完成"),
+            SubtitleOverlayPresentation.visibleRows(
+                pending = emptyList(),
+                history = listOf("更早一句。", "上一句。", "最新已完成句！"),
+                current = "当前未完成",
+                maxRows = 3,
+            ),
+        )
+    }
+
+    @Test
     fun expandedPanelNeverUsesTheWholeDisplayWidth() {
         val displayWidth = 1080
         val width = SubtitleOverlayGeometry.expandedWidth(displayWidth, density = 3f)
