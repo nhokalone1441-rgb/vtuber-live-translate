@@ -48,7 +48,6 @@ class SubtitleOverlay(
     private val subtitleHistory = ArrayDeque<HistoryEntry>()
     private val historyHandler = Handler(Looper.getMainLooper())
     private val historyExpiry = Runnable { pruneExpiredHistory(); renderLines(); scheduleHistoryExpiry() }
-    private var lastProcessedConfirmed = ""
     private var dot: View? = null
     private var lp: WindowManager.LayoutParams? = null
     private var collapsed = false
@@ -241,19 +240,22 @@ class SubtitleOverlay(
         historyHandler.removeCallbacks(historyExpiry)
     }
 
+    /** A commit event is distinct from the rendered text: identical dialogue may be spoken twice. */
+    fun addCommittedLine(text: String) {
+        val committed = text.trim()
+        if (committed.isEmpty()) return
+        // Keep the entire finalized batch as one dialogue block. A batch may contain
+        // several sentences; splitting it into one-sentence slots made the history
+        // disappear too quickly during natural multi-sentence speech.
+        pruneExpiredHistory()
+        subtitleHistory.addLast(HistoryEntry(committed, android.os.SystemClock.uptimeMillis()))
+        while (subtitleHistory.size > SUBTITLE_HISTORY_LINES - 1) subtitleHistory.removeFirst()
+        scheduleHistoryExpiry()
+        renderLines()
+    }
+
     fun setLines(confirmed: String, current: String) {
-        val committed = confirmed.trim()
-        if (committed.isNotEmpty() && committed != lastProcessedConfirmed) {
-            lastProcessedConfirmed = committed
-            // Keep the entire finalized batch as one dialogue block. A batch may contain
-            // several sentences; splitting it into one-sentence slots made the history
-            // disappear too quickly during natural multi-sentence speech.
-            pruneExpiredHistory()
-            subtitleHistory.addLast(HistoryEntry(committed, android.os.SystemClock.uptimeMillis()))
-            while (subtitleHistory.size > SUBTITLE_HISTORY_LINES - 1) subtitleHistory.removeFirst()
-            scheduleHistoryExpiry()
-        }
-        // The live row is never copied into history; finalized lines remain distinct.
+        // Confirmed text is a display snapshot only. History is updated by addCommittedLine().
         latestCurrent = current.trim()
         renderLines()
     }
