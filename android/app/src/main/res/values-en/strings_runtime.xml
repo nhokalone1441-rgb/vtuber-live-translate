@@ -290,5 +290,5 @@
     <string name="rt_live_engine_translate">Dedicated fast translation 3.5</string>
     <string name="rt_live_engine_prompted">Prompt-controlled 3.8 (experimental)</string>
     <string name="rt_live_engine_translate_hint">Default engine: dedicated speech translation optimized for low latency; it does not support scene prompts. A fixed language only hints source transcription.</string>
-    <string name="rt_live_engine_prompted_hint">Experimental engine: sends the selected language and film-scene instructions to the model to guide natural phrasing, tone and context. Translation quality, latency and stability still need real-world testing. Connection test verifies only the handshake, not translation quality.</string>
+    <string name="rt_live_engine_prompted_hint">Experimental engine: sends the selected language and film-scene instructions to guide natural phrasing, tone and context. However, 3.8 is designed for voice agents; proactive audio may filter movie dialogue it does not interpret as addressed speech. The prompt explicitly asks it to translate every line, but this must be verified with real films. Latency and stability also need testing. Connection test verifies only the handshake.</string>
 </resources>
