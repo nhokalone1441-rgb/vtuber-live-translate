@@ -177,7 +177,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:stepSize="100"
-                        android:valueFrom="1000"
+                        android:valueFrom="500"
                         android:valueTo="6000"/>
                     <TextView
                         android:id="@+id/tvMaxCharsVal"
