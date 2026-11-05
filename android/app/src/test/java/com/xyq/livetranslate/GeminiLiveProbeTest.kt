@@ -269,6 +269,56 @@ class GeminiLiveProbeTest {
     }
 
     @Test
+    fun promptedSetupIncludesSessionSpecificCustomVocabulary() {
+        val setup = JSONObject(
+            GeminiLiveClient.buildSetupJson(
+                model = GeminiLiveClient.PROMPTED_MODEL,
+                sourceLang = "ja",
+                customVocabulary = listOf("Sandevistan", "露西", "Arasaka"),
+            ),
+        ).getJSONObject("setup")
+        val vocabulary = setup.getJSONObject("inputAudioTranscription")
+            .getJSONArray("customVocabulary")
+        assertEquals(3, vocabulary.length())
+        assertEquals("Sandevistan", vocabulary.getString(0))
+        assertEquals("露西", vocabulary.getString(1))
+        assertEquals("Arasaka", vocabulary.getString(2))
+    }
+
+    @Test
+    fun dedicatedTranslateModelDoesNotReceivePromptedEngineVocabulary() {
+        val setup = JSONObject(
+            GeminiLiveClient.buildSetupJson(
+                model = GeminiLiveClient.MODEL,
+                customVocabulary = listOf("Sandevistan", "露西"),
+            ),
+        ).getJSONObject("setup")
+        assertFalse(setup.getJSONObject("inputAudioTranscription").has("customVocabulary"))
+    }
+
+    @Test
+    fun extractsQuotedAndExplicitFilmTermsWithoutTurningWholeSentencesIntoVocabulary() {
+        val terms = GeminiLiveClient.extractCustomVocabulary(
+            "作品：《Cyberpunk Edgerunners》；角色：「露西」「大卫」；术语：Sandevistan, Arasaka",
+        )
+        assertTrue(terms.contains("Cyberpunk Edgerunners"))
+        assertTrue(terms.contains("露西"))
+        assertTrue(terms.contains("大卫"))
+        assertTrue(terms.contains("Sandevistan"))
+        assertTrue(terms.contains("Arasaka"))
+        assertFalse(terms.contains("角色"))
+        assertTrue(terms.size <= 50)
+    }
+
+    @Test
+    fun customVocabularyIsBoundedAndDeduplicated() {
+        val context = (1..150).joinToString(" ") { "「Character$it」" }
+        val terms = GeminiLiveClient.extractCustomVocabulary(context)
+        assertEquals(50, terms.size)
+        assertEquals(50, terms.distinct().size)
+    }
+
+    @Test
     fun promptedProbeSendsSystemInstructionBeforeHandshakeCompletes() {
         val receivedSetup = java.util.concurrent.atomic.AtomicReference<JSONObject?>()
         server.enqueue(
