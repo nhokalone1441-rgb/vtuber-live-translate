@@ -116,7 +116,6 @@ class TranscriptLogger(
     fun close() {
         if (closed) return
         val pendingTranslation = rawTranslationBuffer.toString().trim()
-        val pendingSource = sourceBuffer.toString().trim()
         // Any text still buffered after the last explicit commit is new trailing audio.
         // Keep it even when identical to the previous line; a repeated utterance is valid dialogue.
         if (pendingTranslation.isNotEmpty()) {
