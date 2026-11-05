@@ -67,7 +67,7 @@ class SubtitleOverlayWindowTest {
     @Test
     fun completedDialogueBlockStaysForConfiguredDurationThenExpires() {
         val context = appContext()
-        SettingsStore.saveHistoryDisplaySeconds(context, 8)
+        SettingsStore.saveHistoryDisplaySeconds(context, 3)
         val overlay = SubtitleOverlay(context, StatusBus.MODE_VIDEO)
         try {
             assertTrue(overlay.show())
@@ -82,20 +82,34 @@ class SubtitleOverlayWindowTest {
             })
             assertEquals("第五句正在说", rows[2].text.toString())
 
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(7_999))
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(2_999))
             assertEquals(1, history.size)
             shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
             assertEquals(0, history.size)
             assertEquals("第五句正在说", rows[2].text.toString())
         } finally {
             overlay.hide()
+            SettingsStore.saveHistoryDisplaySeconds(context, SettingsStore.DEFAULT_HISTORY_DISPLAY_SECONDS)
         }
+    }
+
+    @Test
+    fun historyDurationDefaultsToThreeSecondsAndClampsToTwoThroughFive() {
+        val context = appContext()
+        context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit()
+            .remove("subtitleHistoryDisplaySeconds").apply()
+        assertEquals(3, SettingsStore.historyDisplaySeconds(context))
+        SettingsStore.saveHistoryDisplaySeconds(context, 1)
+        assertEquals(2, SettingsStore.historyDisplaySeconds(context))
+        SettingsStore.saveHistoryDisplaySeconds(context, 99)
+        assertEquals(5, SettingsStore.historyDisplaySeconds(context))
+        SettingsStore.saveHistoryDisplaySeconds(context, SettingsStore.DEFAULT_HISTORY_DISPLAY_SECONDS)
     }
 
     @Test
     fun longDialogueRemainsOneReadableHistoryBlock() {
         val context = appContext()
-        SettingsStore.saveHistoryDisplaySeconds(context, 30)
+        SettingsStore.saveHistoryDisplaySeconds(context, 5)
         val overlay = SubtitleOverlay(context, StatusBus.MODE_VIDEO)
         try {
             assertTrue(overlay.show())
@@ -109,10 +123,11 @@ class SubtitleOverlayWindowTest {
                 it::class.java.getDeclaredField("text").apply { isAccessible = true }.get(it)
             })
 
-            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(10))
+            shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(4))
             assertEquals(1, history.size)
         } finally {
             overlay.hide()
+            SettingsStore.saveHistoryDisplaySeconds(context, SettingsStore.DEFAULT_HISTORY_DISPLAY_SECONDS)
         }
     }
 
