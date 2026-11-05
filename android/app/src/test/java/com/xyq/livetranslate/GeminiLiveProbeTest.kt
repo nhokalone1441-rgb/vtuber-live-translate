@@ -85,6 +85,26 @@ class GeminiLiveProbeTest {
     }
 
     @Test
+    fun fixedSourceOptionsMapToExpectedTranscriptLanguageHints() {
+        val expected = mapOf(
+            "zh" to "zh-CN",
+            "ja" to "ja-JP",
+            "en" to "en-US",
+            "ko" to "ko-KR",
+        )
+        expected.forEach { (source, languageCode) ->
+            val setup = JSONObject(
+                GeminiLiveClient.buildSetupJson(sourceLang = source),
+            ).getJSONObject("setup")
+            assertEquals(
+                languageCode,
+                setup.getJSONObject("inputAudioTranscription")
+                    .getJSONArray("languageCodes").getString(0),
+            )
+        }
+    }
+
+    @Test
     fun multiSourceLeavesLanguageHintOpenForAutomaticDetection() {
         val setup = JSONObject(
             GeminiLiveClient.buildSetupJson(sourceLang = "multi"),
