@@ -179,15 +179,20 @@ class SubtitleStabilizerTest {
     @Test
     fun preservesMeaningfulExclamationAndDialogue() {
         val renders = mutableListOf<Pair<String, String>>()
+        val committed = mutableListOf<String>()
         val stabilizer = SubtitleStabilizer(
             handler = Handler(Looper.getMainLooper()),
             maxCurrentChars = 1,
+            onCommit = { committed += it },
             onRender = { confirmed, current -> renders += confirmed to current },
         )
 
         stabilizer.onFragment("Á! Có ai không?")
 
-        assertEquals("Á! Có ai không?", renders.last().first)
+        // Dialogue punctuation creates two history entries; the exclamation
+        // must survive the vocalization filter rather than being discarded.
+        assertEquals(listOf("Á!", "Có ai không?"), committed)
+        assertEquals("Có ai không?", renders.last().first)
         assertEquals("", renders.last().second)
     }
 
