@@ -70,7 +70,7 @@ class PromptBuilderTest {
         assertTrue(prompt.contains("不进行说话人识别、身份追踪或性别判断"))
         assertTrue(prompt.contains("结合当前会话前后文理解代词、省略、指代、双关、俚语和网络梗"))
         assertTrue(prompt.contains("不得为了简短而漏译或改写原意"))
-        assertTrue(prompt.contains("优先使用自然、中性的"))
+        assertTrue(prompt.contains("无法确定时优先省略不必要的人称"))
         assertFalse(prompt.contains("根据声音特征和连续对话判断每位说话者的性别"))
         assertFalse(prompt.contains("分别追踪每位说话者"))
     }
