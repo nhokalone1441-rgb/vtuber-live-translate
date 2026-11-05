@@ -224,6 +224,7 @@ class SubtitleOverlay(
         expandedY = params.y
         applyStyleNow()
         setControlsVisible(true)
+        renderLines()
         return true
     }
 
