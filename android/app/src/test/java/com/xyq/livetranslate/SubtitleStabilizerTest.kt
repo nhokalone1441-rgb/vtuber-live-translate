@@ -14,19 +14,22 @@ class SubtitleStabilizerTest {
     @Test
     fun keepsEverySentenceFromOneServerFragment() {
         val renders = mutableListOf<Pair<String, String>>()
+        val committed = mutableListOf<String>()
         val stabilizer = SubtitleStabilizer(
             handler = Handler(Looper.getMainLooper()),
+            onCommit = { committed += it },
             onRender = { confirmed, current -> renders += confirmed to current },
         )
 
         stabilizer.onFragment("第一句。第二句！第三句？")
 
-        // Complete clauses promote immediately; no silence is required.
-        assertEquals("第一句。第二句！第三句？", renders.last().first)
+        // Complete clauses promote immediately and remain separate history rows.
+        assertEquals(listOf("第一句。", "第二句！", "第三句？"), committed)
+        assertEquals("第三句？", renders.last().first)
         assertEquals("", renders.last().second)
 
         shadowOf(Looper.getMainLooper()).idleFor(1_500, TimeUnit.MILLISECONDS)
-        assertEquals("第一句。第二句！第三句？", renders.last().first)
+        assertEquals("第三句？", renders.last().first)
         assertEquals("", renders.last().second)
     }
 
