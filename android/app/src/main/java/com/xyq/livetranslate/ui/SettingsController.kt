@@ -905,7 +905,7 @@ internal class SettingsController(
         views.slFont.value = SettingsStore.fontSizeSp(context).toFloat().coerceIn(12f, 26f)
         views.slOpacity.value = SettingsStore.bgOpacityPct(context).toFloat().coerceIn(20f, 95f)
         views.slLines.value = SettingsStore.overlayMaxLines(context).toFloat().coerceIn(1f, 3f)
-        views.slHistoryDuration.value = SettingsStore.historyDisplaySeconds(context).toFloat()
+        views.slHistoryDuration.value = SettingsStore.overlayDisplayMs(context) / 1000f
         updateStyleLabels()
         val change = Slider.OnChangeListener { _, _, fromUser ->
             updateStyleLabels()
@@ -920,10 +920,10 @@ internal class SettingsController(
             it.addOnChangeListener(change)
         }
         views.slHistoryDuration.addOnChangeListener { _, value, fromUser ->
-            views.tvHistoryDurationVal.text = context.getString(R.string.settings_subtitle_history_duration, value.toInt())
-            if (fromUser) SettingsStore.saveHistoryDisplaySeconds(context, value.toInt())
+            views.tvHistoryDurationVal.text = context.getString(R.string.settings_subtitle_history_duration, value)
+            if (fromUser) SettingsStore.saveOverlayDisplayMs(context, (value * 1000f).toInt())
         }
-        views.tvHistoryDurationVal.text = context.getString(R.string.settings_subtitle_history_duration, views.slHistoryDuration.value.toInt())
+        views.tvHistoryDurationVal.text = context.getString(R.string.settings_subtitle_history_duration, views.slHistoryDuration.value)
     }
 
     private fun renderPreviewStage() {
