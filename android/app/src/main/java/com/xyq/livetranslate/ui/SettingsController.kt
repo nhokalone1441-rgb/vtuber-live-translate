@@ -1025,7 +1025,7 @@ internal class SettingsController(
             views.slOpacity.value = SettingsStore.DEFAULT_BG_OPACITY.toFloat()
             views.slLines.value = SettingsStore.DEFAULT_OVERLAY_LINES.toFloat()
             updateStyleLabels()
-            views.tvHistoryDurationVal.text = context.getString(R.string.settings_subtitle_history_duration, views.slHistoryDuration.value.toInt())
+            views.tvHistoryDurationVal.text = context.getString(R.string.settings_subtitle_history_duration, views.slHistoryDuration.value)
             renderParamValues()
             toast(context.getString(R.string.rt_toast_subtitle_params_reset))
         }
