@@ -45,6 +45,20 @@ class GeminiLiveProbeTest {
     }
 
     @Test
+    fun buildWebSocketUrlRejectsMalformedCustomEndpointInsteadOfFallingBack() {
+        try {
+            GeminiLiveClient.buildWebSocketUrl(
+                baseUrl = "https://bad host",
+                apiKey = "must-not-be-sent",
+            )
+            fail("Expected invalid endpoint to be rejected")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message?.contains("Invalid Live service URL") == true)
+            assertFalse(e.message?.contains("must-not-be-sent") == true)
+        }
+    }
+
+    @Test
     fun buildWebSocketUrlExtractsFirstKeyFromMultiple() {
         val url = GeminiLiveClient.buildWebSocketUrl(
             baseUrl = "wss://generativelanguage.googleapis.com",
