@@ -59,6 +59,7 @@ class GeminiLiveClient(
     private val rotateAfterMs: Long = SettingsStore.DEFAULT_ROTATE_SECONDS * 1000L,
     private val listener: Listener,
     private val model: String = MODEL,
+    private val customVocabulary: List<String> = emptyList(),
 ) {
     interface Listener {
         fun onState(state: String)
@@ -131,10 +132,17 @@ class GeminiLiveClient(
             sourceLang: String = "multi",
             echoTargetLanguage: Boolean = true,
             prompt: String = "",
+            customVocabulary: List<String> = emptyList(),
         ): String {
             val inputTranscription = JSONObject()
             sourceLanguageHint(sourceLang)?.let { hint ->
                 inputTranscription.put("languageCodes", JSONArray().put(hint))
+            }
+            if (model == PROMPTED_MODEL) {
+                val vocabulary = normalizeCustomVocabulary(customVocabulary)
+                if (vocabulary.isNotEmpty()) {
+                    inputTranscription.put("customVocabulary", JSONArray(vocabulary))
+                }
             }
             val generationConfig = JSONObject()
                 .put("responseModalities", JSONArray().put("AUDIO"))
@@ -169,8 +177,44 @@ class GeminiLiveClient(
             return JSONObject().put("setup", setup).toString()
         }
 
+        /**
+         * Extract explicit names and terms from the session context for Gemini 3.8 transcription.
+         * This biases the input transcript only; it is not sent to the dedicated 3.5 translator.
+         */
+        fun extractCustomVocabulary(context: String, maxTerms: Int = 50): List<String> {
+            if (context.isBlank() || maxTerms <= 0) return emptyList()
+            val terms = linkedSetOf<String>()
+            fun add(raw: String) {
+                if (terms.size >= maxTerms.coerceAtMost(100)) return
+                val value = raw.trim().trim(' ', '。', '，', ',', '、', ';', '；', ':', '：', '「', '」', '『', '』', '《', '》', '"', '\\'')
+                if (value.length !in 2..40 || value.split(' ').size > 4) return
+                terms.add(value)
+            }
+            val quoted = Regex("[「『《“”‘’\"]([^」』》“”‘’\"]{2,40})[」』》“”‘’\"]")
+            quoted.findAll(context).forEach { add(it.groupValues[1]) }
+            val labelled = Regex("(?:角色|人物|作品|人名|地名|专名|术语|技能|道具|译名|关键词)\\s*[:：]\\s*([^\\n。；;]{2,100})")
+            labelled.findAll(context).forEach { match ->
+                match.groupValues[1].split(Regex("[,，、;；|/]+")).forEach(::add)
+            }
+            val latinNames = Regex("(?<![A-Za-z0-9])(?:[A-Z][a-z0-9]+|[A-Z]{2,})(?:[ -](?:[A-Z][a-z0-9]+|[A-Z]{2,})){0,3}")
+            val ignored = setOf("The", "This", "That", "And", "With", "From", "When", "Where", "Please", "Video", "Scene", "Context", "Translation", "Character", "Episode", "English", "Chinese", "Japanese", "Korean", "Vietnamese", "Live", "Gemini")
+            latinNames.findAll(context).forEach { match ->
+                if (match.value !in ignored) add(match.value)
+            }
+            return terms.toList()
+        }
+
+        private fun normalizeCustomVocabulary(values: List<String>): List<String> {
+            val terms = linkedSetOf<String>()
+            values.forEach { raw ->
+                val value = raw.trim().replace(Regex("\\s+"), " ")
+                if (value.length in 2..40 && value.split(' ').size <= 4) terms.add(value)
+            }
+            return terms.take(100)
+        }
+
         // These hints apply to the optional input transcript only. The dedicated Live Translate
-        // model still detects the spoken source language itself; this does not lock translation. 
+        // model still detects the spoken source language itself; this does not lock translation.
         private fun sourceLanguageHint(sourceLang: String): String? = when (sourceLang.lowercase()) {
             "zh" -> "zh-CN"
             "ja" -> "ja-JP"
@@ -543,6 +587,7 @@ class GeminiLiveClient(
             sourceLang = sourceLang,
             echoTargetLanguage = echoTargetLanguage,
             prompt = prompt,
+            customVocabulary = customVocabulary,
         )
 
     private fun senderLoop() {
