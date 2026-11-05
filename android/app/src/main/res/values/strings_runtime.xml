@@ -3,6 +3,8 @@
     <!-- General & Actions -->
     <!-- 翻译语言显示名：仅用于界面展示，语言 code 不随界面语言变化 -->
     <string name="rt_lang_multi">多语言（中/日/英/韩）</string>
+    <string name="rt_label_input_language">输入语言 / 影片原语种</string>
+    <string name="rt_hint_input_language">已知影片语种时选择固定语言；语言混合或不确定时选择 Multi。</string>
     <string name="rt_live_translate_capability_note">实时引擎会自动识别原语种；固定语种仅提示源字幕识别，场景提示词和本场背景资料暂不参与实时翻译。</string>
     <string name="rt_lang_auto">自动检测</string>
     <string name="rt_lang_zh">中文</string>
