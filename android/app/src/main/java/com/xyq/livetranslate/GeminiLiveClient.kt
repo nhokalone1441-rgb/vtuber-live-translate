@@ -186,7 +186,7 @@ class GeminiLiveClient(
             val terms = linkedSetOf<String>()
             fun add(raw: String) {
                 if (terms.size >= maxTerms.coerceAtMost(100)) return
-                val value = raw.trim().trim(' ', '。', '，', ',', '、', ';', '；', ':', '：', '「', '」', '『', '』', '《', '》', '"', '\\'')
+                val value = raw.trim().trim(' ', '。', '，', ',', '、', ';', '；', ':', '：', '「', '」', '『', '』', '《', '》', '"')
                 if (value.length !in 2..40 || value.split(' ').size > 4) return
                 terms.add(value)
             }
