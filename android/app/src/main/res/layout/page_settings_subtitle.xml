@@ -148,8 +148,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:stepSize="1"
-                    android:valueFrom="2"
-                    android:valueTo="30"/>
+                    android:valueFrom="1"
+                    android:valueTo="15"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
         <com.google.android.material.card.MaterialCardView
