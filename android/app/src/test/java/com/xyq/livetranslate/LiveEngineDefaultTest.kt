@@ -35,12 +35,12 @@ class LiveEngineDefaultTest {
 
     @Test
     fun existingInstallMigratesBackToContinuousTranslateEngineOnce() {
-        preferences.edit().putString("liveTranslationEngine", GeminiLiveClient.ENGINE_TRANSLATE).commit()
+        preferences.edit().putString("liveTranslationEngine", GeminiLiveClient.ENGINE_PROMPTED).commit()
 
         assertEquals(GeminiLiveClient.ENGINE_TRANSLATE, SettingsStore.liveEngine(context))
 
         // The user can still deliberately switch back after the one-time migration.
-        SettingsStore.saveLiveEngine(context, GeminiLiveClient.ENGINE_TRANSLATE)
-        assertEquals(GeminiLiveClient.ENGINE_TRANSLATE, SettingsStore.liveEngine(context))
+        SettingsStore.saveLiveEngine(context, GeminiLiveClient.ENGINE_PROMPTED)
+        assertEquals(GeminiLiveClient.ENGINE_PROMPTED, SettingsStore.liveEngine(context))
     }
 }
