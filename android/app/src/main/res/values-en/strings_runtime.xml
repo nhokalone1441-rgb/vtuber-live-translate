@@ -2,6 +2,7 @@
 <resources>
     <!-- General & Actions -->
     <!-- Translation language display names: UI only; language codes never change with app locale -->
+    <string name="rt_lang_multi">Multilingual (ZH/JA/EN/KO)</string>
     <string name="rt_lang_auto">Auto detect</string>
     <string name="rt_lang_zh">Chinese</string>
     <string name="rt_lang_vi">Vietnamese</string>
