@@ -128,6 +128,10 @@ class PromptBuilderTest {
         assertTrue(chineseToVietnamese.contains("【中文→越南语口语转换规则】"))
         assertTrue(chineseToVietnamese.contains("不保留中文语序"))
         assertTrue(chineseToVietnamese.contains("禁止逐字逐词固定映射"))
+        assertTrue(chineseToVietnamese.contains("中文“我”不自动等于越南语“anh/em”"))
+        assertTrue(chineseToVietnamese.contains("不能仅凭音色、声线或上一句的性别印象替换称谓"))
+        assertTrue(chineseToVietnamese.contains("不要把半句话过早补成常见套话"))
+        assertTrue(chineseToVietnamese.contains("说话人的声音性别与其在越南语中对自己/对方的称呼不是一回事"))
         assertTrue(autoToVietnamese.contains("【检测到中文时使用的中文→越南语口语转换规则】"))
         assertFalse(japaneseToVietnamese.contains("【中文→越南语口语转换规则】"))
     }
