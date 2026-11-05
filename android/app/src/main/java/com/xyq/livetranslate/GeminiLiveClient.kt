@@ -614,7 +614,7 @@ class GeminiLiveClient(
                     synchronized(queue) {
                         // If fresh capture filled the queue while this chunk was in flight,
                         // keep the newer audio rather than exceeding the latency budget.
-                        if (queue.size < MAX_QUEUE) queue.offerFirst(queued)
+                        if (!inputPaused && queue.size < MAX_QUEUE) queue.offerFirst(queued)
                     }
                     Thread.sleep(60)
                     continue
@@ -636,9 +636,9 @@ class GeminiLiveClient(
                     if (firstAudioSentAtMs == 0L) firstAudioSentAtMs = sentAt
                     lastAudioSentAtMs = sentAt
                     StatusBus.chunksSent.incrementAndGet()
-                } else {
+                } else if (!inputPaused) {
                     synchronized(queue) {
-                        if (queue.size < MAX_QUEUE) queue.offerFirst(queued)
+                        if (!inputPaused && queue.size < MAX_QUEUE) queue.offerFirst(queued)
                     }
                     Thread.sleep(120)
                 }
