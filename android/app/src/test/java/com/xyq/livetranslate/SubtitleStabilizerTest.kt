@@ -51,6 +51,45 @@ class SubtitleStabilizerTest {
     }
 
     @Test
+    fun keepsTheSameDialogueWhenItIsRepeatedAfterAPause() {
+        val renders = mutableListOf<Pair<String, String>>()
+        val stabilizer = SubtitleStabilizer(
+            handler = Handler(Looper.getMainLooper()),
+            idleCommitMs = 100L,
+            onRender = { confirmed, current -> renders += confirmed to current },
+        )
+
+        stabilizer.onFragment("Go!")
+        shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
+        assertEquals("Go!", renders.last().first)
+
+        shadowOf(Looper.getMainLooper()).idleFor(1_000, TimeUnit.MILLISECONDS)
+        stabilizer.onFragment("Go!")
+        shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
+
+        assertEquals("Go!", renders.last().first)
+    }
+
+    @Test
+    fun doesNotDropAShortLineJustBecauseItWasContainedInThePreviousLine() {
+        val renders = mutableListOf<Pair<String, String>>()
+        val stabilizer = SubtitleStabilizer(
+            handler = Handler(Looper.getMainLooper()),
+            idleCommitMs = 100L,
+            onRender = { confirmed, current -> renders += confirmed to current },
+        )
+
+        stabilizer.onFragment("I don't know.")
+        shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
+        shadowOf(Looper.getMainLooper()).idleFor(1_000, TimeUnit.MILLISECONDS)
+
+        stabilizer.onFragment("Know.")
+        shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
+
+        assertEquals("Know.", renders.last().first)
+    }
+
+    @Test
     fun suppressesStandaloneMoaningSounds() {
         val renders = mutableListOf<Pair<String, String>>()
         val stabilizer = SubtitleStabilizer(
