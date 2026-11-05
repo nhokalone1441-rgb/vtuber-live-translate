@@ -64,7 +64,7 @@ object SettingsStore {
     const val DEFAULT_HISTORY_DISPLAY_SECONDS = 3
 
     fun historyDisplaySeconds(c: Context): Int =
-        prefs(c).getInt("subtitleHistoryDisplaySeconds", DEFAULT_HISTORY_DISPLAY_SECONDS).coerceIn(1, 5)
+        prefs(c).getInt("subtitleHistoryDisplaySeconds", DEFAULT_HISTORY_DISPLAY_SECONDS).coerceIn(2, 5)
 
     fun saveHistoryDisplaySeconds(c: Context, seconds: Int) {
         prefs(c).edit().putInt("subtitleHistoryDisplaySeconds", seconds.coerceIn(2, 5)).apply()
