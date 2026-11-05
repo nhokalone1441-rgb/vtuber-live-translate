@@ -67,6 +67,7 @@ class CaptureService : Service() {
     private var client: GeminiLiveClient? = null
     private var overlay: SubtitleOverlay? = null
     private var logger: TranscriptLogger? = null
+    private var pcmProcessor: PcmProcessor? = null
 
     @Volatile private var capturing = false
     @Volatile private var paused = false
@@ -86,6 +87,9 @@ class CaptureService : Service() {
             ACTION_TOGGLE_PAUSE -> {
                 paused = !paused
                 StatusBus.paused = paused
+                // Drop partial PCM and queued audio at the pause boundary; keep the Live session.
+                pcmProcessor?.reset()
+                client?.setInputPaused(paused)
             }
         }
         return START_NOT_STICKY
@@ -261,6 +265,7 @@ class CaptureService : Service() {
                 }
 
                 override fun onInputText(text: String) {
+                    if (paused) return
                     logger?.logJa(text)
                     appendTail(jaTail, text)
                     StatusBus.jaTail = jaTail.toString()
@@ -268,6 +273,7 @@ class CaptureService : Service() {
                 }
 
                 override fun onOutputText(text: String) {
+                    if (paused) return
                     val receivedAtMs = SystemClock.elapsedRealtime()
                     logger?.logZh(text)
                     mainHandler.post {
@@ -289,6 +295,8 @@ class CaptureService : Service() {
             record.sampleRate,
             record.channelCount,
         ) { chunk -> c.feedChunk(chunk) }
+        pcmProcessor = processor
+        c.setInputPaused(false)
 
         paused = false
         StatusBus.paused = false
@@ -518,6 +526,8 @@ class CaptureService : Service() {
         projection = null
         client?.stop()
         client = null
+        pcmProcessor?.reset()
+        pcmProcessor = null
         logger?.close()
         logger = null
         mainHandler.post {
