@@ -11,6 +11,8 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.view.Gravity
+import android.os.Handler
+import android.os.Looper
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -42,7 +44,10 @@ class SubtitleOverlay(
     private var collapseButton: ImageView? = null
     private val subtitleRows = mutableListOf<TextView>()
     // Two finalized dialogue rows plus one live karaoke row.
-    private val subtitleHistory = ArrayDeque<String>()
+    private data class HistoryEntry(val text: String, val expiresAt: Long)
+    private val subtitleHistory = ArrayDeque<HistoryEntry>()
+    private val historyHandler = Handler(Looper.getMainLooper())
+    private val historyExpiry = Runnable { pruneExpiredHistory(); renderLines(); scheduleHistoryExpiry() }
     private var lastProcessedConfirmed = ""
     private var dot: View? = null
     private var lp: WindowManager.LayoutParams? = null
@@ -233,6 +238,7 @@ class SubtitleOverlay(
         lp = null
         collapsed = false
         controlsVisible = false
+        historyHandler.removeCallbacks(historyExpiry)
     }
 
     fun setLines(confirmed: String, current: String) {
@@ -242,14 +248,27 @@ class SubtitleOverlay(
             // Keep the entire finalized batch as one dialogue block. A batch may contain
             // several sentences; splitting it into one-sentence slots made the history
             // disappear too quickly during natural multi-sentence speech.
-            subtitleHistory.addLast(committed)
-            while (subtitleHistory.size > SUBTITLE_HISTORY_LINES - 1) {
-                subtitleHistory.removeFirst()
-            }
+            pruneExpiredHistory()
+            val durationMs = SettingsStore.historyDisplaySeconds(context) * 1000L
+            subtitleHistory.addLast(HistoryEntry(committed, android.os.SystemClock.uptimeMillis() + durationMs))
+            while (subtitleHistory.size > SUBTITLE_HISTORY_LINES - 1) subtitleHistory.removeFirst()
+            scheduleHistoryExpiry()
         }
         // The live row is never copied into history; finalized lines remain distinct.
         latestCurrent = current.trim()
         renderLines()
+    }
+
+    private fun pruneExpiredHistory() {
+        val now = android.os.SystemClock.uptimeMillis()
+        while (subtitleHistory.isNotEmpty() && subtitleHistory.first().expiresAt <= now) subtitleHistory.removeFirst()
+    }
+
+    private fun scheduleHistoryExpiry() {
+        historyHandler.removeCallbacks(historyExpiry)
+        pruneExpiredHistory()
+        val nextExpiry = subtitleHistory.firstOrNull()?.expiresAt ?: return
+        historyHandler.postAtTime(historyExpiry, nextExpiry)
     }
 
     fun setStateColor(colorHex: String) {
@@ -324,7 +343,7 @@ class SubtitleOverlay(
         // The live karaoke row occupies the bottom slot; two finalized dialogue rows stay above it.
         val rows = SubtitleOverlayPresentation.visibleRows(
             pending = emptyList(),
-            history = subtitleHistory.toList(),
+            history = subtitleHistory.map { it.text },
             current = latestCurrent,
             maxRows = SUBTITLE_HISTORY_LINES,
         )
