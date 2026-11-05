@@ -24,6 +24,22 @@ class SubtitleStabilizerTest {
     }
 
     @Test
+    fun longUtteranceStaysLiveInsteadOfBeingSplitAtTheOldShortLimit() {
+        val renders = mutableListOf<Pair<String, String>>()
+        val stabilizer = SubtitleStabilizer(
+            handler = Handler(Looper.getMainLooper()),
+            maxCurrentChars = 240,
+            onRender = { confirmed, current -> renders += confirmed to current },
+        )
+
+        val longUtterance = "这是一段比较长的连续对话内容".repeat(8)
+        stabilizer.onFragment(longUtterance)
+
+        assertEquals("", renders.last().first)
+        assertEquals(longUtterance, renders.last().second)
+    }
+
+    @Test
     fun suppressesStandaloneMoaningSounds() {
         val renders = mutableListOf<Pair<String, String>>()
         val stabilizer = SubtitleStabilizer(
