@@ -33,6 +33,20 @@ class TranslationPlanStoreTest {
     }
 
     @Test
+    fun supportedLanguagesAreChineseJapaneseEnglishKoreanToVietnameseOnly() {
+        assertEquals(listOf("zh", "ja", "en", "ko"), TranslationLanguageCatalog.sources.map { it.code })
+        assertEquals(listOf("vi"), TranslationLanguageCatalog.targets.map { it.code })
+
+        val legacy = TranslationPlan(
+            mode = TranslationMode.VIDEO,
+            sourceLanguageCode = "auto",
+            targetLanguageCode = "en",
+        ).normalized()
+        assertEquals("zh", legacy.sourceLanguageCode)
+        assertEquals("vi", legacy.targetLanguageCode)
+    }
+
+    @Test
     fun draftKeepsLanguageAndSceneIndependentlyPerMode() {
         clearStore()
         val interp = TranslationPlan.default(TranslationMode.INTERPRETATION).copy(
