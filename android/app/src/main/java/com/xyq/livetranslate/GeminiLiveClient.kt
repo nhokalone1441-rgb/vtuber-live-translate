@@ -194,7 +194,10 @@ class GeminiLiveClient(
             quoted.findAll(context).forEach { add(it.groupValues[1]) }
             val labelled = Regex("(?:角色|人物|作品|人名|地名|专名|术语|技能|道具|译名|关键词)\\s*[:：]\\s*([^\\n。；;]{2,100})")
             labelled.findAll(context).forEach { match ->
-                match.groupValues[1].split(Regex("[,，、;；|/]+")).forEach(::add)
+                val value = match.groupValues[1]
+                if (!value.any { it in "「」『』《》“”‘’" }) {
+                    value.split(Regex("[,，、;；|/]+")).forEach(::add)
+                }
             }
             val latinNames = Regex("(?<![A-Za-z0-9])(?:[A-Z][a-z0-9]+|[A-Z]{2,})(?:[ -](?:[A-Z][a-z0-9]+|[A-Z]{2,})){0,3}")
             val ignored = setOf("The", "This", "That", "And", "With", "From", "When", "Where", "Please", "Video", "Scene", "Context", "Translation", "Character", "Episode", "English", "Chinese", "Japanese", "Korean", "Vietnamese", "Live", "Gemini")
