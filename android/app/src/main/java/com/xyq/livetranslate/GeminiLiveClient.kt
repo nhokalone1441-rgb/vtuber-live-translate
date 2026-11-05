@@ -72,6 +72,9 @@ class GeminiLiveClient(
         const val PROMPTED_MODEL = "models/gemini-3.8-live"
         const val ENGINE_TRANSLATE = "translate"
         const val ENGINE_PROMPTED = "prompted"
+        const val PROMPTED_MODEL = "models/gemini-3.8-live"
+        const val ENGINE_TRANSLATE = "translate"
+        const val ENGINE_PROMPTED = "prompted"
 
         fun modelForEngine(engine: String): String =
             if (engine == ENGINE_PROMPTED) PROMPTED_MODEL else MODEL
