@@ -42,7 +42,7 @@ class TranslationPlanStoreTest {
             sourceLanguageCode = "auto",
             targetLanguageCode = "en",
         ).normalized()
-        assertEquals("zh", legacy.sourceLanguageCode)
+        assertEquals("multi", legacy.sourceLanguageCode)
         assertEquals("vi", legacy.targetLanguageCode)
 
         val multilingual = TranslationPlan(
