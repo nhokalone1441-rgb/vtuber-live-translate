@@ -115,10 +115,20 @@ class PromptBuilderTest {
                 scenePresetId = scene.id,
             ),
         )
+        val autoToVietnamese = PromptBuilder.build(
+            scene = scene,
+            plan = TranslationPlan(
+                mode = TranslationMode.VIDEO,
+                sourceLanguageCode = "auto",
+                targetLanguageCode = "vi",
+                scenePresetId = scene.id,
+            ),
+        )
 
         assertTrue(chineseToVietnamese.contains("【中文→越南语口语转换规则】"))
         assertTrue(chineseToVietnamese.contains("不保留中文语序"))
         assertTrue(chineseToVietnamese.contains("禁止逐字逐词固定映射"))
+        assertTrue(autoToVietnamese.contains("【检测到中文时使用的中文→越南语口语转换规则】"))
         assertFalse(japaneseToVietnamese.contains("【中文→越南语口语转换规则】"))
     }
 
