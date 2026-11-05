@@ -63,7 +63,7 @@ object SettingsStore {
     const val DEFAULT_STAB_MAX_CHARS = 500
     const val DEFAULT_HISTORY_DISPLAY_SECONDS = 3
 
-    const val DEFAULT_LIVE_ENGINE = GeminiLiveClient.ENGINE_TRANSLATE
+    const val DEFAULT_LIVE_ENGINE = GeminiLiveClient.ENGINE_PROMPTED
 
     fun liveEngine(c: Context): String =
         prefs(c).getString("liveTranslationEngine", DEFAULT_LIVE_ENGINE)
