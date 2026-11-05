@@ -79,9 +79,9 @@ class GeminiLiveProbeTest {
         val inputTranscription = setup.getJSONObject("inputAudioTranscription")
         assertEquals("en-US", inputTranscription.getJSONArray("languageCodes").getString(0))
 
-        val sysInstruction = setup.getJSONObject("systemInstruction")
-        val text = sysInstruction.getJSONArray("parts").getJSONObject(0).getString("text")
-        assertEquals("Live translation prompt", text)
+        // Gemini 3.5 Live Translate does not support systemInstruction.
+        // Passing a scene prompt must not leak an unsupported field into setup.
+        assertFalse(setup.has("systemInstruction"))
     }
 
     @Test
