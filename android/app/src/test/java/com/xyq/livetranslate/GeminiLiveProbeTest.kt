@@ -266,7 +266,8 @@ class GeminiLiveProbeTest {
         assertEquals(GeminiLiveClient.MODEL, setup.getString("model"))
         assertTrue(setup.getJSONObject("generationConfig").has("translationConfig"))
         assertFalse(setup.has("systemInstruction"))
-        assertEquals(0, setup.getJSONObject("inputAudioTranscription").length())
+        val languageHints = setup.getJSONObject("inputAudioTranscription").getJSONArray("languageCodes")
+        assertEquals(listOf("zh-CN", "ja-JP", "en-US", "ko-KR"), (0 until languageHints.length()).map { languageHints.getString(it) })
     }
 
     @Test
