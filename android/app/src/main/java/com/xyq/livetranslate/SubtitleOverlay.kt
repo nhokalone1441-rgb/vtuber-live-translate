@@ -231,6 +231,7 @@ class SubtitleOverlay(
         root?.let { runCatching { wm.removeView(it) } }
         root = null
         panel = null
+        subtitleRows.clear()
         headerRow = null
         collapsedHandle = null
         pauseButton = null
