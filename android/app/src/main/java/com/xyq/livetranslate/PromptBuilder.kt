@@ -44,10 +44,10 @@ object TranslationLanguageCatalog {
     // Vietnamese is the sole output language to keep the translation path consistent.
     val sources = listOf(
         TranslationLanguage("multi", "多语言（中文、日语、英语、韩语）", R.string.rt_lang_multi),
-        TranslationLanguage("zh", "中文", R.string.rt_lang_zh),
-        TranslationLanguage("ja", "日语", R.string.rt_lang_ja),
         TranslationLanguage("en", "英语", R.string.rt_lang_en),
+        TranslationLanguage("zh", "中文", R.string.rt_lang_zh),
         TranslationLanguage("ko", "韩语", R.string.rt_lang_ko),
+        TranslationLanguage("ja", "日语", R.string.rt_lang_ja),
     )
     val targets = listOf(
         TranslationLanguage("vi", "越南语", R.string.rt_lang_vi),
