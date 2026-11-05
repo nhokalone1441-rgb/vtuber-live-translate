@@ -815,7 +815,7 @@ class MainActivityStartupTest {
         val idle = activity.findViewById<com.google.android.material.slider.Slider>(R.id.slIdle)
         val maxChars = activity.findViewById<com.google.android.material.slider.Slider>(R.id.slMaxChars)
         assertEquals(100f, idle.stepSize, 0f)
-        assertEquals(1600f, idle.value, 0f)
+        assertEquals(800f, idle.value, 0f)
         assertTrue(idle.value in idle.valueFrom..idle.valueTo)
         assertEquals(2f, maxChars.stepSize, 0f)
         assertEquals(42f, maxChars.value, 0f)
