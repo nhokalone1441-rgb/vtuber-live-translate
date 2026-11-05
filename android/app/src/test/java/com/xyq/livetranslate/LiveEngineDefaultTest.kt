@@ -28,16 +28,16 @@ class LiveEngineDefaultTest {
     }
 
     @Test
-    fun firstLaunchSelectsContinuousTranslateEngine() {
-        assertEquals(GeminiLiveClient.ENGINE_TRANSLATE, SettingsStore.liveEngine(context))
-        assertEquals(GeminiLiveClient.MODEL, GeminiLiveClient.modelForEngine(SettingsStore.liveEngine(context)))
+    fun firstLaunchSelectsContextAwarePromptedEngine() {
+        assertEquals(GeminiLiveClient.ENGINE_PROMPTED, SettingsStore.liveEngine(context))
+        assertEquals(GeminiLiveClient.PROMPTED_MODEL, GeminiLiveClient.modelForEngine(SettingsStore.liveEngine(context)))
     }
 
     @Test
-    fun existingInstallMigratesBackToContinuousTranslateEngineOnce() {
+    fun existingInstallMigratesToDialogueBlockEngineOnce() {
         preferences.edit().putString("liveTranslationEngine", GeminiLiveClient.ENGINE_PROMPTED).commit()
 
-        assertEquals(GeminiLiveClient.ENGINE_TRANSLATE, SettingsStore.liveEngine(context))
+        assertEquals(GeminiLiveClient.ENGINE_PROMPTED, SettingsStore.liveEngine(context))
 
         // The user can still deliberately switch back after the one-time migration.
         SettingsStore.saveLiveEngine(context, GeminiLiveClient.ENGINE_PROMPTED)
