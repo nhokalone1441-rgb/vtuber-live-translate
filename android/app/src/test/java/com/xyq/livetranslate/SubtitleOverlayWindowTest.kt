@@ -73,7 +73,7 @@ class SubtitleOverlayWindowTest {
             assertTrue(overlay.show())
             val block = "第一句。第二句！第三句？第四句。"
             overlay.addCommittedLine(block)
-            overlay.setLines("", "第五句正在说")
+            overlay.setLines("第五句正在说")
             val rows = overlay.field<MutableList<TextView>>("subtitleRows")
             val history = overlay.field<ArrayDeque<*>>("subtitleHistory")
 
@@ -139,7 +139,7 @@ class SubtitleOverlayWindowTest {
             val longSentence = "甲".repeat(59) + "。"
             val block = "$longSentence$longSentence$longSentence"
             overlay.addCommittedLine(block)
-            overlay.setLines("", "")
+            overlay.setLines("")
             val history = overlay.field<ArrayDeque<*>>("subtitleHistory")
 
             assertEquals(1, history.size)
@@ -233,7 +233,7 @@ class SubtitleOverlayWindowTest {
 
             repeat(5) {
                 overlay.maybeReapplyStyle()
-                overlay.setLines("已确认", "当前行")
+                overlay.setLines("当前行")
                 shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1000))
             }
 
