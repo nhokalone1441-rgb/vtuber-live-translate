@@ -434,6 +434,9 @@ class GeminiLiveClient(
         if (!running.get() || inputPaused) return
         val queued = QueuedAudio(chunk, SystemClock.elapsedRealtime())
         synchronized(queue) {
+            // Re-check under the same lock used by pause/clear to prevent a stale
+            // capture-thread chunk from being enqueued after the pause boundary.
+            if (!running.get() || inputPaused) return
             if (queue.size >= MAX_QUEUE) {
                 queue.pollFirst()
                 val dropped = droppedAudioChunks.incrementAndGet()
