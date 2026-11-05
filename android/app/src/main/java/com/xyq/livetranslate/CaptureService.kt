@@ -215,9 +215,9 @@ class CaptureService : Service() {
             idleCommitMs = idleMsSnapshot,
             maxCurrentChars = maxCharsSnapshot,
             onCommit = { text -> appendConfirmedTranslation(text) },
-        ) { confirmed, current ->
+        ) { _, current ->
             overlay?.maybeReapplyStyle()
-            overlay?.setLines(confirmed, current)
+            overlay?.setLines(current)
             updateZhPanel(current)
         }
         if (useOverlay) {
