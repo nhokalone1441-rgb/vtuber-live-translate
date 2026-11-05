@@ -141,6 +141,7 @@ class CaptureService : Service() {
             return
         }
         val baseUrlSnapshot = SettingsStore.baseUrl(this)
+        val liveModelSnapshot = GeminiLiveClient.modelForEngine(SettingsStore.liveEngine(this))
         val echoSnapshot = SettingsStore.echoTargetLanguage(this)
         val rotateMsSnapshot = SettingsStore.rotateSeconds(this) * 1000L
         val idleMsSnapshot = SettingsStore.stabIdleMs(this).toLong()
@@ -276,7 +277,8 @@ class CaptureService : Service() {
                     }
                 }
 
-            }
+            },
+            model = liveModelSnapshot,
         )
         client = c
         c.start()
