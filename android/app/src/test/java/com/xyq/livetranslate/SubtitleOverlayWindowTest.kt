@@ -67,7 +67,7 @@ class SubtitleOverlayWindowTest {
     @Test
     fun completedDialogueBlockStaysForConfiguredDurationThenExpires() {
         val context = appContext()
-        SettingsStore.saveHistoryDisplaySeconds(context, 3)
+        SettingsStore.saveOverlayDisplayMs(context, 3_000)
         val overlay = SubtitleOverlay(context, StatusBus.MODE_VIDEO)
         try {
             assertTrue(overlay.show())
@@ -90,14 +90,14 @@ class SubtitleOverlayWindowTest {
             assertEquals("第五句正在说", rows[2].text.toString())
         } finally {
             overlay.hide()
-            SettingsStore.saveHistoryDisplaySeconds(context, SettingsStore.DEFAULT_HISTORY_DISPLAY_SECONDS)
+            SettingsStore.saveOverlayDisplayMs(context, SettingsStore.DEFAULT_OVERLAY_DISPLAY_MS)
         }
     }
 
     @Test
     fun repeatedIdenticalDialogueCreatesTwoSeparateHistoryEntries() {
         val context = appContext()
-        SettingsStore.saveHistoryDisplaySeconds(context, 5)
+        SettingsStore.saveOverlayDisplayMs(context, 5_000)
         val overlay = SubtitleOverlay(context, StatusBus.MODE_VIDEO)
         try {
             assertTrue(overlay.show())
@@ -112,7 +112,7 @@ class SubtitleOverlayWindowTest {
             assertEquals("Go!", rows[2].text.toString())
         } finally {
             overlay.hide()
-            SettingsStore.saveHistoryDisplaySeconds(context, SettingsStore.DEFAULT_HISTORY_DISPLAY_SECONDS)
+            SettingsStore.saveOverlayDisplayMs(context, SettingsStore.DEFAULT_OVERLAY_DISPLAY_MS)
         }
     }
 
@@ -126,13 +126,13 @@ class SubtitleOverlayWindowTest {
         assertEquals(2, SettingsStore.historyDisplaySeconds(context))
         SettingsStore.saveHistoryDisplaySeconds(context, 99)
         assertEquals(5, SettingsStore.historyDisplaySeconds(context))
-        SettingsStore.saveHistoryDisplaySeconds(context, SettingsStore.DEFAULT_HISTORY_DISPLAY_SECONDS)
+        SettingsStore.saveOverlayDisplayMs(context, SettingsStore.DEFAULT_OVERLAY_DISPLAY_MS)
     }
 
     @Test
     fun longDialogueRemainsOneReadableHistoryBlock() {
         val context = appContext()
-        SettingsStore.saveHistoryDisplaySeconds(context, 5)
+        SettingsStore.saveOverlayDisplayMs(context, 5_000)
         val overlay = SubtitleOverlay(context, StatusBus.MODE_VIDEO)
         try {
             assertTrue(overlay.show())
@@ -151,7 +151,7 @@ class SubtitleOverlayWindowTest {
             assertEquals(1, history.size)
         } finally {
             overlay.hide()
-            SettingsStore.saveHistoryDisplaySeconds(context, SettingsStore.DEFAULT_HISTORY_DISPLAY_SECONDS)
+            SettingsStore.saveOverlayDisplayMs(context, SettingsStore.DEFAULT_OVERLAY_DISPLAY_MS)
         }
     }
 
