@@ -101,10 +101,13 @@ class SubtitleStabilizer(
         }
         if (committed.isEmpty()) return
 
-        val block = committed.joinToString(separator = "")
-        lastCommitted = committed.last()
-        lastCommittedAtMs = now
-        onCommit(block)
+        // Commit each completed sentence separately so the overlay can show the
+        // two most recent dialogue lines instead of one multi-sentence paragraph.
+        committed.forEach { sentence ->
+            lastCommitted = sentence
+            lastCommittedAtMs = now
+            onCommit(sentence)
+        }
     }
 
     private fun splitSentences(s: String): List<String> {
