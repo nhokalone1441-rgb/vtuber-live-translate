@@ -59,7 +59,7 @@ object SettingsStore {
     // ---------- 翻译参数 / 断句参数，改动下次开始翻译时生效 ----------
 
     const val DEFAULT_ROTATE_SECONDS = 505         // 服务端约 590s GoAway，提前主动轮换
-    const val DEFAULT_STAB_IDLE_MS = 1600
+    const val DEFAULT_STAB_IDLE_MS = 800
     const val DEFAULT_STAB_MAX_CHARS = 42
 
     fun echoTargetLanguage(c: Context): Boolean =
@@ -77,10 +77,10 @@ object SettingsStore {
     }
 
     fun stabIdleMs(c: Context): Int =
-        prefs(c).getInt("advStabIdleMs", DEFAULT_STAB_IDLE_MS).coerceIn(1000, 6000)
+        prefs(c).getInt("advStabIdleMs", DEFAULT_STAB_IDLE_MS).coerceIn(500, 6000)
 
     fun saveStabIdleMs(c: Context, v: Int) {
-        prefs(c).edit().putInt("advStabIdleMs", v.coerceIn(1000, 6000)).apply()
+        prefs(c).edit().putInt("advStabIdleMs", v.coerceIn(500, 6000)).apply()
     }
 
     fun stabMaxChars(c: Context): Int =
