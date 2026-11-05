@@ -197,6 +197,7 @@ class CaptureService : Service() {
         sessionLines.clear()
         StatusBus.startSession(sessionPlan, sceneLabel = sessionSceneLabel)
         val sessionContext = intent.getStringExtra(EXTRA_SESSION_CONTEXT).orEmpty()
+        val customVocabularySnapshot = GeminiLiveClient.extractCustomVocabulary(sessionContext)
         logger = TranscriptLogger(
             context = this,
             mode = translationMode,
@@ -246,6 +247,7 @@ class CaptureService : Service() {
             sourceLang = sessionPlan.sourceLanguageCode,
             echoTargetLanguage = echoSnapshot,
             rotateAfterMs = rotateMsSnapshot,
+            customVocabulary = customVocabularySnapshot,
             listener = object : GeminiLiveClient.Listener {
                 override fun onState(state: String) {
                     StatusBus.connState = state
