@@ -84,10 +84,10 @@ object SettingsStore {
     }
 
     fun saveLiveEngine(c: Context, engine: String) {
-        val safe = if (engine == GeminiLiveClient.ENGINE_PROMPTED) {
-            GeminiLiveClient.ENGINE_PROMPTED
+        val safe = if (engine == GeminiLiveClient.ENGINE_TRANSLATE) {
+            GeminiLiveClient.ENGINE_TRANSLATE
         } else {
-            DEFAULT_LIVE_ENGINE
+            GeminiLiveClient.ENGINE_PROMPTED
         }
         prefs(c).edit().putString("liveTranslationEngine", safe).apply()
     }
