@@ -68,9 +68,11 @@ internal data class SettingsViews(
     val slFont: Slider,
     val slOpacity: Slider,
     val slLines: Slider,
+    val slHistoryDuration: Slider,
     val tvFontVal: TextView,
     val tvOpacityVal: TextView,
     val tvLinesVal: TextView,
+    val tvHistoryDurationVal: TextView,
     val toggleSecondAiService: MaterialButtonToggleGroup,
     val btnSecondAiServiceGemini: MaterialButton,
     val btnSecondAiServiceZen: MaterialButton,
@@ -150,9 +152,11 @@ internal data class SettingsViews(
                 slFont = root.findViewById(R.id.slFont),
                 slOpacity = root.findViewById(R.id.slOpacity),
                 slLines = root.findViewById(R.id.slLines),
+                slHistoryDuration = root.findViewById(R.id.slHistoryDuration),
                 tvFontVal = root.findViewById(R.id.tvFontVal),
                 tvOpacityVal = root.findViewById(R.id.tvOpacityVal),
                 tvLinesVal = root.findViewById(R.id.tvLinesVal),
+                tvHistoryDurationVal = root.findViewById(R.id.tvHistoryDurationVal),
                 toggleSecondAiService = root.findViewById(R.id.toggleSecondAiService),
                 btnSecondAiServiceGemini = root.findViewById(R.id.btnSecondAiServiceGemini),
                 btnSecondAiServiceZen = root.findViewById(R.id.btnSecondAiServiceZen),
@@ -884,6 +888,7 @@ internal class SettingsController(
         views.slFont.value = SettingsStore.fontSizeSp(context).toFloat().coerceIn(12f, 26f)
         views.slOpacity.value = SettingsStore.bgOpacityPct(context).toFloat().coerceIn(20f, 95f)
         views.slLines.value = SettingsStore.overlayMaxLines(context).toFloat().coerceIn(1f, 3f)
+        views.slHistoryDuration.value = SettingsStore.historyDisplaySeconds(context).toFloat()
         updateStyleLabels()
         val change = Slider.OnChangeListener { _, _, fromUser ->
             updateStyleLabels()
@@ -897,6 +902,11 @@ internal class SettingsController(
         listOf(views.slFont, views.slOpacity, views.slLines).forEach {
             it.addOnChangeListener(change)
         }
+        views.slHistoryDuration.addOnChangeListener { _, value, fromUser ->
+            views.tvHistoryDurationVal.text = context.getString(R.string.settings_subtitle_history_duration, value.toInt())
+            if (fromUser) SettingsStore.saveHistoryDisplaySeconds(context, value.toInt())
+        }
+        views.tvHistoryDurationVal.text = context.getString(R.string.settings_subtitle_history_duration, views.slHistoryDuration.value.toInt())
     }
 
     private fun renderPreviewStage() {
@@ -947,6 +957,8 @@ internal class SettingsController(
         views.btnResetSubtitle.setOnClickListener {
             SettingsStore.saveStabIdleMs(context, SettingsStore.DEFAULT_STAB_IDLE_MS)
             SettingsStore.saveStabMaxChars(context, SettingsStore.DEFAULT_STAB_MAX_CHARS)
+            SettingsStore.saveHistoryDisplaySeconds(context, SettingsStore.DEFAULT_HISTORY_DISPLAY_SECONDS)
+            views.slHistoryDuration.value = SettingsStore.DEFAULT_HISTORY_DISPLAY_SECONDS.toFloat()
             SettingsStore.saveStyle(
                 context,
                 SettingsStore.DEFAULT_FONT_SP,
@@ -957,6 +969,7 @@ internal class SettingsController(
             views.slOpacity.value = SettingsStore.DEFAULT_BG_OPACITY.toFloat()
             views.slLines.value = SettingsStore.DEFAULT_OVERLAY_LINES.toFloat()
             updateStyleLabels()
+            views.tvHistoryDurationVal.text = context.getString(R.string.settings_subtitle_history_duration, views.slHistoryDuration.value.toInt())
             renderParamValues()
             toast(context.getString(R.string.rt_toast_subtitle_params_reset))
         }
