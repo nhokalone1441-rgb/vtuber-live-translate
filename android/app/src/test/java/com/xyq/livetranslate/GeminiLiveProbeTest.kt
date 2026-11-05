@@ -73,7 +73,7 @@ class GeminiLiveProbeTest {
         assertEquals("AUDIO", modalities.getString(0))
 
         val transConfig = genConfig.getJSONObject("translationConfig")
-        assertEquals("zh-CN", transConfig.getString("targetLanguageCode"))
+        assertEquals("vi", transConfig.getString("targetLanguageCode"))
         assertTrue(transConfig.getBoolean("echoTargetLanguage"))
 
         val inputTranscription = setup.getJSONObject("inputAudioTranscription")
