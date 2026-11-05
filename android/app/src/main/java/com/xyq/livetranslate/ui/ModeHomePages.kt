@@ -316,6 +316,8 @@ internal class ModeHomeController(
     }
 
     private fun setupLanguageControls() {
+        // Output is intentionally Vietnamese-only, so a language-swap action cannot succeed.
+        views.languageSwapButton.visibility = View.GONE
         views.sourceLanguage.setSimpleItems(TranslationLanguageCatalog.sources.map { it.label }.toTypedArray())
         views.targetLanguage.setSimpleItems(TranslationLanguageCatalog.targets.map { it.label }.toTypedArray())
         listOf(views.sourceLanguage, views.targetLanguage).forEach { dropdown ->
@@ -351,8 +353,8 @@ internal class ModeHomeController(
         val scene = SceneLibraryStore.resolve(context, mode, plan.scenePresetId)
         // 主页只显示场景名与语言方向；场景提示词不在主页展开。
         views.planSummary.text = "${scene.label} · ${plan.directionLabel}"
-        views.profileSummary.visibility = View.GONE
-        views.profileSummary.text = ""
+        views.profileSummary.text = context.getString(R.string.rt_live_translate_capability_note)
+        views.profileSummary.visibility = View.VISIBLE
     }
 
     fun render(status: UiRuntimeStatus) {
