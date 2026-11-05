@@ -33,6 +33,19 @@ class SubtitleOverlayGeometryTest {
     }
 
     @Test
+    fun keepsOnlyTheTwoNewestDialogueLinesAboveTheLiveKaraokeLine() {
+        assertEquals(
+            listOf("第二句。", "第三句。", "正在说的第四句"),
+            SubtitleOverlayPresentation.visibleRows(
+                pending = emptyList(),
+                history = listOf("第一句。", "第二句。", "第三句。"),
+                current = "正在说的第四句",
+                maxRows = 3,
+            ),
+        )
+    }
+
+    @Test
     fun expandedPanelNeverUsesTheWholeDisplayWidth() {
         val displayWidth = 1080
         val width = SubtitleOverlayGeometry.expandedWidth(displayWidth, density = 3f)
