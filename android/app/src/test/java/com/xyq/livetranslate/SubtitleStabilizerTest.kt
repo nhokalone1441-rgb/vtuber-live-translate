@@ -6,6 +6,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
+import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
 class SubtitleStabilizerTest {
@@ -19,6 +21,15 @@ class SubtitleStabilizerTest {
 
         stabilizer.onFragment("第一句。第二句！第三句？")
 
+        // Punctuation must not roll the subtitle row immediately; keep the full utterance live.
+        assertEquals("", renders.last().first)
+        assertEquals("第一句。第二句！第三句？", renders.last().second)
+
+        shadowOf(Looper.getMainLooper()).idleFor(700, TimeUnit.MILLISECONDS)
+        assertEquals("", renders.last().first)
+        assertEquals("第一句。第二句！第三句？", renders.last().second)
+
+        shadowOf(Looper.getMainLooper()).idleFor(800, TimeUnit.MILLISECONDS)
         assertEquals("第一句。第二句！第三句？", renders.last().first)
         assertEquals("", renders.last().second)
     }
