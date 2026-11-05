@@ -34,9 +34,17 @@ data class TranslationLanguage(
     val promptLabel: String,
     val labelRes: Int,
 ) {
-    /** 按当前界面语言取显示名；未知 code 回退为 code 本身。 */
+    /** 语言选择器固定使用越南语名称，避免用户必须识别文字象形；业务码与模型提示词不变。 */
     val label: String
-        get() = if (labelRes == 0) code else AppStrings.get(labelRes)
+        get() = when (code.lowercase()) {
+            "multi" -> "Nhiều ngôn ngữ"
+            "en" -> "Tiếng Anh"
+            "zh" -> "Tiếng Trung"
+            "ko" -> "Tiếng Hàn"
+            "ja" -> "Tiếng Nhật"
+            "vi" -> "Tiếng Việt"
+            else -> if (labelRes == 0) code else AppStrings.get(labelRes)
+        }
 }
 
 object TranslationLanguageCatalog {
