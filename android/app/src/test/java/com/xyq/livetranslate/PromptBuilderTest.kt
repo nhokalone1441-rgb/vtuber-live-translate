@@ -137,6 +137,50 @@ class PromptBuilderTest {
     }
 
     @Test
+    fun `multilingual film mode detects Chinese Japanese English and Korean and localizes to Vietnamese`() {
+        val scene = DefaultSceneCatalog.resolve(TranslationMode.VIDEO, "general_video")
+        val prompt = PromptBuilder.build(
+            scene = scene,
+            plan = TranslationPlan(
+                mode = TranslationMode.VIDEO,
+                sourceLanguageCode = "multi",
+                targetLanguageCode = "vi",
+                scenePresetId = scene.id,
+            ),
+        )
+
+        assertTrue(prompt.contains("【翻译方向：多语言（中文、日语、英语、韩语） → 越南语】"))
+        assertTrue(prompt.contains("逐段判断实际说出的语言"))
+        assertTrue(prompt.contains("敬语等级"))
+        assertTrue(prompt.contains("短语动词、习语"))
+        assertTrue(prompt.contains("不要逐词直译日语语序"))
+        assertTrue(prompt.contains("自然、准确、可快速阅读的越南语字幕"))
+    }
+
+    @Test
+    fun `each supported film language receives its own Vietnamese localization guidance`() {
+        val scene = DefaultSceneCatalog.resolve(TranslationMode.VIDEO, "general_video")
+        val prompts = mapOf(
+            "zh" to "【中文→越南语口语转换规则】",
+            "ja" to "【日语→越南语影视对白规则】",
+            "en" to "【英语→越南语影视对白规则】",
+            "ko" to "【韩语→越南语影视对白规则】",
+        )
+        prompts.forEach { (language, expected) ->
+            val prompt = PromptBuilder.build(
+                scene = scene,
+                plan = TranslationPlan(
+                    mode = TranslationMode.VIDEO,
+                    sourceLanguageCode = language,
+                    targetLanguageCode = "vi",
+                    scenePresetId = scene.id,
+                ),
+            )
+            assertTrue("Missing guidance for $language", prompt.contains(expected))
+        }
+    }
+
+    @Test
     fun `video prompt includes analyzed session context without changing scene`() {
         val scene = DefaultSceneCatalog.resolve(TranslationMode.VIDEO, "general_video")
         val plan = TranslationPlan(
