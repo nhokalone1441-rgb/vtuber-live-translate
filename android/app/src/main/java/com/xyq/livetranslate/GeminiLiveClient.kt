@@ -58,6 +58,7 @@ class GeminiLiveClient(
     private val echoTargetLanguage: Boolean = true,
     private val rotateAfterMs: Long = SettingsStore.DEFAULT_ROTATE_SECONDS * 1000L,
     private val listener: Listener,
+    private val model: String = MODEL,
 ) {
     interface Listener {
         fun onState(state: String)
@@ -68,6 +69,12 @@ class GeminiLiveClient(
     companion object {
         private const val TAG = "GeminiLive"
         const val MODEL = "models/gemini-3.5-live-translate-preview"
+        const val PROMPTED_MODEL = "models/gemini-3.8-live"
+        const val ENGINE_TRANSLATE = "translate"
+        const val ENGINE_PROMPTED = "prompted"
+
+        fun modelForEngine(engine: String): String =
+            if (engine == ENGINE_PROMPTED) PROMPTED_MODEL else MODEL
         const val WS_PATH =
             "/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
         private const val MAX_QUEUE = 75       // 75 × 40ms = 3 秒积压上限；断线后优先追实时
@@ -100,7 +107,6 @@ class GeminiLiveClient(
          * 构造符合 Gemini Live Translate 协议的 setup 消息。
          * 字段层级严格依赖官方与实测契约，禁止漂移。
          */
-        @Suppress("UNUSED_PARAMETER")
         fun buildSetupJson(
             model: String = MODEL,
             targetLang: String = TranslationPlan.DEFAULT_TARGET_LANGUAGE,
@@ -112,23 +118,34 @@ class GeminiLiveClient(
             sourceLanguageHint(sourceLang)?.let { hint ->
                 inputTranscription.put("languageCodes", JSONArray().put(hint))
             }
+            val generationConfig = JSONObject()
+                .put("responseModalities", JSONArray().put("AUDIO"))
             val setup = JSONObject()
                 .put("model", model)
-                .put(
-                    "generationConfig", JSONObject()
-                        .put("responseModalities", JSONArray().put("AUDIO"))
-                        .put(
-                            "translationConfig", JSONObject()
-                                .put("targetLanguageCode", targetLang)
-                                .put("echoTargetLanguage", echoTargetLanguage)
-                        )
-                )
+                .put("generationConfig", generationConfig)
                 .put("inputAudioTranscription", inputTranscription)
                 .put("outputAudioTranscription", JSONObject())
-            // Gemini 3.5 Live Translate explicitly does not support system instructions.
-            // Sending PromptBuilder output here is misleading at best and may make setup fail.
-            // Keep the parameter for source compatibility; prompt customization requires a
-            // different model/API path and must not be claimed as active on this translation model.
+
+            if (model == PROMPTED_MODEL) {
+                // Gemini 3.8 Live supports systemInstruction. Keep it opt-in for A/B testing.
+                if (prompt.isNotBlank()) {
+                    setup.put(
+                        "systemInstruction",
+                        JSONObject().put(
+                            "parts",
+                            JSONArray().put(JSONObject().put("text", prompt)),
+                        ),
+                    )
+                }
+            } else {
+                // Gemini 3.5 Live Translate supports translationConfig but not systemInstruction.
+                generationConfig.put(
+                    "translationConfig",
+                    JSONObject()
+                        .put("targetLanguageCode", targetLang)
+                        .put("echoTargetLanguage", echoTargetLanguage),
+                )
+            }
             return JSONObject().put("setup", setup).toString()
         }
 
@@ -154,6 +171,8 @@ class GeminiLiveClient(
             apiKey: String,
             timeoutMs: Long = 10_000L,
             client: OkHttpClient? = null,
+            model: String = MODEL,
+            prompt: String = "",
         ): String {
             val key = SettingsStore.extractFirstApiKey(apiKey)
             if (key.isEmpty()) {
@@ -176,7 +195,7 @@ class GeminiLiveClient(
 
             val listener = object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {
-                    val setupJson = buildSetupJson()
+                    val setupJson = buildSetupJson(model = model, prompt = prompt)
                     webSocket.send(setupJson)
                 }
 
@@ -499,7 +518,7 @@ class GeminiLiveClient(
 
     private fun buildSetupJson(): String =
         Companion.buildSetupJson(
-            model = MODEL,
+            model = model,
             targetLang = targetLang,
             sourceLang = sourceLang,
             echoTargetLanguage = echoTargetLanguage,
