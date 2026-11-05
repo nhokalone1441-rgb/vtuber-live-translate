@@ -61,7 +61,8 @@
                         app:boxBackgroundMode="none"
                         app:boxStrokeWidth="0dp"
                         app:boxStrokeWidthFocused="0dp"
-                        app:endIconMode="none"
+                        app:endIconMode="dropdown_menu"
+                        app:endIconTint="@color/brand"
                         app:hintEnabled="false">
 
                         <com.google.android.material.textfield.MaterialAutoCompleteTextView
@@ -69,9 +70,11 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:background="@android:color/transparent"
-                            android:gravity="center"
+                            android:gravity="center_vertical"
                             android:inputType="none"
-                            android:padding="0dp"
+                            android:minHeight="48dp"
+                            android:paddingHorizontal="8dp"
+                            android:popupBackground="@color/surface_white"
                             android:textColor="@color/text_primary"
                             android:textSize="15sp"
                             android:textStyle="bold" />
