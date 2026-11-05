@@ -59,24 +59,23 @@ object SettingsStore {
     // ---------- 翻译参数 / 断句参数，改动下次开始翻译时生效 ----------
 
     const val DEFAULT_ROTATE_SECONDS = 505         // 服务端约 590s GoAway，提前主动轮换
-    const val DEFAULT_STAB_IDLE_MS = 1500
-    const val DEFAULT_STAB_MAX_CHARS = 500
+    const val DEFAULT_STAB_IDLE_MS = 800
+    const val DEFAULT_STAB_MAX_CHARS = 180
     const val DEFAULT_HISTORY_DISPLAY_SECONDS = 3
 
-    const val DEFAULT_LIVE_ENGINE = GeminiLiveClient.ENGINE_TRANSLATE
+    const val DEFAULT_LIVE_ENGINE = GeminiLiveClient.ENGINE_PROMPTED
 
-    private const val LIVE_ENGINE_ROLLBACK_MIGRATION_KEY = "liveEngineRollbackMigrationV268"
+    private const val LIVE_ENGINE_DIALOGUE_BLOCK_MIGRATION_KEY = "liveEngineDialogueBlockMigrationV2611"
 
     fun liveEngine(c: Context): String {
         val settings = prefs(c)
-        // Roll back the experimental prompt-driven 3.8 engine as the default.
-        // The dedicated 3.5 Live Translate engine is designed for continuous speech translation;
-        // 3.8 may defer output until a speech turn closes, which is unacceptable for live subtitles.
-        // Migrate once so existing installs do not remain pinned to the regressed engine.
-        if (!settings.getBoolean(LIVE_ENGINE_ROLLBACK_MIGRATION_KEY, false)) {
+        // Dialogue-block mode accepts a short completion delay so the prompt-driven model
+        // can use sentence context and produce natural Vietnamese rather than word fragments.
+        // Run this migration once; users can still choose either engine afterwards.
+        if (!settings.getBoolean(LIVE_ENGINE_DIALOGUE_BLOCK_MIGRATION_KEY, false)) {
             settings.edit()
-                .putString("liveTranslationEngine", GeminiLiveClient.ENGINE_TRANSLATE)
-                .putBoolean(LIVE_ENGINE_ROLLBACK_MIGRATION_KEY, true)
+                .putString("liveTranslationEngine", GeminiLiveClient.ENGINE_PROMPTED)
+                .putBoolean(LIVE_ENGINE_DIALOGUE_BLOCK_MIGRATION_KEY, true)
                 .apply()
         }
         return settings.getString("liveTranslationEngine", DEFAULT_LIVE_ENGINE)
