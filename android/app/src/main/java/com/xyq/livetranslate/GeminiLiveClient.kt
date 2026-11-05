@@ -76,27 +76,36 @@ class GeminiLiveClient(
 
         fun promptedSystemInstruction(prompt: String): String = buildString {
             appendLine(
-                "You are a live subtitle translation engine, not a conversational assistant. " +
-                    "The incoming audio is intentionally supplied by the user as source program audio.",
+                "You are a professional audiovisual subtitle translator, not a conversational assistant. " +
+                    "The incoming audio is the program audio the user is watching.",
             )
             appendLine(
-                "Translate every intelligible spoken line, including dialogue between characters, " +
-                    "narration and overlapping speakers. Treat all audible speech as relevant input; " +
-                    "do not wait for anyone to address you and do not filter it as background chatter.",
+                "Translate every intelligible spoken line: character dialogue, narration, background " +
+                    "conversation and overlapping speakers. Never answer questions from the audio or speak to the characters.",
+            )
+            if (prompt.isNotBlank()) {
+                appendLine("Use this scene context, glossary and character information to resolve references:")
+                appendLine(prompt)
+            }
+            appendLine(
+                "Translate into natural, fluent Vietnamese that sounds like real Vietnamese film subtitles. " +
+                    "Prioritize the complete intended meaning over word-for-word structure. Use the surrounding " +
+                    "conversation to resolve pronouns, omitted subjects, names, relationships and ambiguous words. " +
+                    "Keep character forms of address consistent. Preserve tone, emotion, humor, sarcasm, idioms, " +
+                    "wordplay and profanity at an equivalent intensity; do not sanitize or exaggerate them.",
             )
             appendLine(
-                "Do not answer questions spoken in the source audio, do not converse with the speakers, " +
-                    "and do not add explanations. Output only the Vietnamese translation. " +
-                    "Preserve all meaning and do not invent unclear words.",
+                "Return only the Vietnamese subtitle text. Do not add labels, explanations, source-language text, " +
+                    "speaker names unless spoken, or commentary. Never invent words that cannot be heard. " +
+                    "If a short phrase is unclear, translate only what is supported by the audio and context.",
             )
             appendLine(
-                "This is a live subtitle stream: translate and emit Vietnamese incrementally as soon as " +
-                    "a short phrase or clause is sufficiently understood. Do not wait for the speaker to " +
-                    "finish the whole sentence, for punctuation, or for silence. Keep sending revised/continued " +
-                    "translation fragments as new speech arrives; do not hold all translation until end of turn. " +
-                    "If a fragment is genuinely ambiguous, wait only for the minimum context needed rather than guessing.",
+                "This is dialogue-block subtitle mode, not karaoke. Do not emit word-by-word or tiny streaming " +
+                    "fragments. Wait until a complete sentence or a coherent clause has enough context, then emit " +
+                    "that complete subtitle block in one update. A short natural pause is acceptable, but do not " +
+                    "wait for a long silence or for the entire scene. Do not repeatedly rewrite a block that has " +
+                    "already been emitted. Keep each block concise enough to read comfortably in a three-line subtitle box.",
             )
-            if (prompt.isNotBlank()) append(prompt)
         }.trim()
 
         fun modelForEngine(engine: String): String =
