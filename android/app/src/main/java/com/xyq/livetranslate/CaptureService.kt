@@ -277,6 +277,7 @@ class CaptureService : Service() {
                     val receivedAtMs = SystemClock.elapsedRealtime()
                     logger?.logZh(text)
                     mainHandler.post {
+                        if (paused) return@post
                         val dispatchMs = SystemClock.elapsedRealtime() - receivedAtMs
                         if (dispatchMs >= 50L) {
                             Log.w(TAG, "subtitle_main_thread_dispatch_ms=$dispatchMs")
