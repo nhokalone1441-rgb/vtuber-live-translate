@@ -132,7 +132,7 @@ class SubtitleOverlay(
             ),
         )
 
-        // Three fixed subtitle slots: oldest at top, newest at bottom.
+        // Three fixed slots: two recent finalized dialogue lines above one live karaoke line.
         repeat(SUBTITLE_HISTORY_LINES) { index ->
             val row = TextView(context).apply {
                 setTextColor(if (index == SUBTITLE_HISTORY_LINES - 1) Color.WHITE else Color.parseColor("#B8C5D6"))
