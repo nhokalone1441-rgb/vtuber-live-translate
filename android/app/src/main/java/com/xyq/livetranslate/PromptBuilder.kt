@@ -245,9 +245,14 @@ object PromptBuilder {
      * Keep this specialization narrow so other language pairs remain unchanged.
      */
     private fun directionStyleInstruction(sourceCode: String, targetCode: String): String? {
-        if (sourceCode != "zh" || targetCode != "vi") return null
+        if (sourceCode !in setOf("zh", "auto") || targetCode != "vi") return null
+        val heading = if (sourceCode == "auto") {
+            "【检测到中文时使用的中文→越南语口语转换规则】"
+        } else {
+            "【中文→越南语口语转换规则】"
+        }
         return """
-            【中文→越南语口语转换规则】
+            $heading
             - 将原意转换成越南人日常真实对话会使用的表达，不保留中文语序；优先按越南语习惯重组句子。
             - 中文常省略主语、宾语或指代。只有前后文明确时才补出越南语人称；关系不明就省略或用中性称呼，绝不猜测亲疏、年龄或性别。
             - 根据语气和语境处理“啊、呢、吧、嘛、哦、诶”等语气词：有实际态度/语用作用时用自然越南语表达，没有独立意义时可省略；禁止逐字逐词固定映射。
