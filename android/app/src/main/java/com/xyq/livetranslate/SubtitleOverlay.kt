@@ -270,8 +270,9 @@ class SubtitleOverlay(
                 }
         }
         latestConfirmed = committed
-        // Partial text is intentionally ignored: no karaoke/streaming line in movie mode.
-        latestCurrent = ""
+        // Show the in-progress translation immediately; the stabilizer will move it
+        // into the confirmed queue once punctuation, length, or idle timeout commits it.
+        latestCurrent = current.trim()
         renderLines()
         if (added > 0 && root != null && !collapsed) {
             // If the new sentence joins the currently visible page, give the reader a fresh full dwell.
@@ -354,19 +355,33 @@ class SubtitleOverlay(
     }
 
     private fun renderLines() {
-        // While a backlog exists show its next page; otherwise retain the latest three completed lines.
-        val rows = if (subtitleQueue.isNotEmpty()) {
-            subtitleQueue.take(SUBTITLE_HISTORY_LINES)
-        } else {
-            subtitleHistory.toList()
-        }
+        // Reserve the bottom row for the live partial translation so it is never hidden
+        // behind the completed-sentence page queue.
+        val rows = SubtitleOverlayPresentation.visibleRows(
+            pending = subtitleQueue.toList(),
+            history = subtitleHistory.toList(),
+            current = latestCurrent,
+            maxRows = SUBTITLE_HISTORY_LINES,
+        )
         val firstVisibleRow = SUBTITLE_HISTORY_LINES - rows.size
         subtitleRows.forEachIndexed { index, view ->
             val line = rows.getOrNull(index - firstVisibleRow).orEmpty()
             view.text = line
+            view.setTextColor(
+                if (line.isNotEmpty() && latestCurrent.isNotEmpty() && line == latestCurrent) {
+                    Color.WHITE
+                } else if (index == SUBTITLE_HISTORY_LINES - 1 && latestCurrent.isEmpty()) {
+                    Color.WHITE
+                } else {
+                    Color.parseColor("#B8C5D6")
+                },
+            )
             view.visibility = if (line.isEmpty()) View.GONE else View.VISIBLE
         }
-        val waiting = (subtitleQueue.size - rows.size).coerceAtLeast(0)
+        val completedVisible = (rows.size - if (latestCurrent.isNotEmpty()) 1 else 0).coerceAtLeast(0)
+        val waiting = if (subtitleQueue.isNotEmpty()) {
+            (subtitleQueue.size - completedVisible).coerceAtLeast(0)
+        } else 0
         backlogLabel?.apply {
             text = if (waiting > 0) "+$waiting" else ""
             visibility = if (waiting > 0) View.VISIBLE else View.GONE
@@ -604,6 +619,28 @@ class SubtitleOverlay(
         }
     }
 
+}
+
+internal object SubtitleOverlayPresentation {
+    /** Completed lines stay above the live partial line, which always gets the bottom slot. */
+    fun visibleRows(
+        pending: List<String>,
+        history: List<String>,
+        current: String,
+        maxRows: Int,
+    ): List<String> {
+        require(maxRows > 0)
+        val partial = current.trim()
+        if (partial.isNotEmpty()) {
+            val completed = if (pending.isNotEmpty()) {
+                pending.take(maxRows - 1)
+            } else {
+                history.takeLast(maxRows - 1)
+            }
+            return completed + partial
+        }
+        return if (pending.isNotEmpty()) pending.take(maxRows) else history.takeLast(maxRows)
+    }
 }
 
 internal object SubtitleOverlayGeometry {
