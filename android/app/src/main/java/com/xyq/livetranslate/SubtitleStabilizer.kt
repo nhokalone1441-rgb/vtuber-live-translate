@@ -17,7 +17,8 @@ class SubtitleStabilizer(
     private val onRender: (confirmed: String, current: String) -> Unit,
 ) {
     companion object {
-        private val TERMINATORS = charArrayOf('。', '！', '？', '…', '～', '!', '?')
+        private val TERMINATORS = charArrayOf('。', '！', '？', '…', '～', '!', '?', '.')
+        private const val CLOSING_MARKS = "\"'”’」』】）)]}"
         private const val DUPLICATE_WINDOW_MS = 900L
     }
 
@@ -69,7 +70,10 @@ class SubtitleStabilizer(
     private fun commitCompletedSentences() {
         var boundary = -1
         for (i in current.indices) {
-            if (current[i] in TERMINATORS) boundary = i + 1
+            if (current[i] in TERMINATORS) {
+                boundary = i + 1
+                while (boundary < current.length && current[boundary] in CLOSING_MARKS) boundary++
+            }
         }
         if (boundary <= 0) return
 
@@ -114,12 +118,19 @@ class SubtitleStabilizer(
     private fun splitSentences(s: String): List<String> {
         val out = ArrayList<String>()
         val cur = StringBuilder()
-        for (ch in s) {
+        var i = 0
+        while (i < s.length) {
+            val ch = s[i]
             cur.append(ch)
             if (ch in TERMINATORS) {
+                while (i + 1 < s.length && s[i + 1] in CLOSING_MARKS) {
+                    i++
+                    cur.append(s[i])
+                }
                 out.add(cur.toString())
                 cur.setLength(0)
             }
+            i++
         }
         if (cur.isNotBlank()) out.add(cur.toString())
         return out
