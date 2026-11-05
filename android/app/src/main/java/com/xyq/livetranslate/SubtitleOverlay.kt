@@ -58,7 +58,300 @@ class SubtitleOverlay(
     companion object {
         private const val SUBTITLE_HISTORY_LINES = 3
 
-        private fun applyStyleNow() {
+        /** 收起后看得见的那根贴边小蓝条有多宽。 */
+        const val COLLAPSED_BAR_WIDTH_DP = 10
+
+        /** 收起态窗口实际宽度；多出来的触摸区朝屏幕内侧渐隐。 */
+        const val COLLAPSED_TOUCH_WIDTH_DP = 28
+        const val COLLAPSED_HEIGHT_DP = 48
+
+        /** 头部控制按钮触摸区。 */
+        const val CONTROL_SIZE_DP = 28
+    }
+
+    private val density = context.resources.displayMetrics.density
+    private fun dp(value: Int) = (value * density).roundToInt()
+
+    @SuppressLint("ClickableViewAccessibility")
+    fun show(): Boolean {
+        if (root != null) return true
+        val dm = context.resources.displayMetrics
+        expandedWidth = SubtitleOverlayGeometry.expandedWidth(dm.widthPixels, density)
+
+        val container = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(8), dp(12), dp(10))
+            elevation = dp(8).toFloat()
+        }
+        val header = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val stateDot = View(context).apply {
+            background = circle(Color.parseColor("#34C759"))
+        }
+        header.addView(
+            stateDot,
+            LinearLayout.LayoutParams(dp(8), dp(8)).apply { rightMargin = dp(8) },
+        )
+        // 状态只由左侧圆点表达；暂停由暂停图标翻成播放图标表达，不再占一行文字。
+        header.addView(
+            View(context),
+            LinearLayout.LayoutParams(0, dp(1), 1f),
+        )
+        val pause = controlButton(R.drawable.ic_overlay_pause_24, context.getString(R.string.rt_overlay_action_pause)).apply {
+            setOnClickListener { togglePause() }
+        }
+        val open = controlButton(R.drawable.ic_overlay_open_24, context.getString(R.string.rt_overlay_action_open)).apply {
+            setOnClickListener { openMainApp() }
+        }
+        val collapse = controlButton(
+            R.drawable.ic_overlay_collapse_24,
+            context.getString(R.string.rt_overlay_action_collapse),
+        ).apply {
+            setOnClickListener { toggleCollapsed() }
+        }
+        header.addView(pause, LinearLayout.LayoutParams(dp(CONTROL_SIZE_DP), dp(CONTROL_SIZE_DP)))
+        header.addView(
+            open,
+            LinearLayout.LayoutParams(dp(CONTROL_SIZE_DP), dp(CONTROL_SIZE_DP)).apply {
+                leftMargin = dp(4)
+            },
+        )
+        header.addView(
+            collapse,
+            LinearLayout.LayoutParams(dp(CONTROL_SIZE_DP), dp(CONTROL_SIZE_DP)).apply {
+                leftMargin = dp(4)
+            },
+        )
+        container.addView(
+            header,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ),
+        )
+
+        // Three fixed subtitle slots: oldest at top, newest at bottom.
+        repeat(SUBTITLE_HISTORY_LINES) { index ->
+            val row = TextView(context).apply {
+                setTextColor(if (index == SUBTITLE_HISTORY_LINES - 1) Color.WHITE else Color.parseColor("#B8C5D6"))
+                textSize = 18f
+                // Wrap complete sentences instead of silently truncating long dialogue.
+                maxLines = Int.MAX_VALUE
+                ellipsize = null
+                setShadowLayer(3f, 0f, 1f, Color.argb(120, 0, 0, 0))
+                setPadding(0, if (index == 0) dp(8) else dp(3), 0, 0)
+                visibility = View.GONE
+            }
+            subtitleRows += row
+            container.addView(
+                row,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ),
+            )
+        }
+
+        val shell = AccentFrameLayout(context, density).apply {
+            elevation = dp(8).toFloat()
+        }
+        // 收起后是一根贴边小蓝条，不放文字。胶囊本体铺满整个触摸宽度（含半透明晕），
+        // OnClickListener 只留给无障碍的 performClick，真实触摸走下面挂的 dragListener
+        // （否则胶囊会吃掉触摸，纵向拖不动）。
+        val sideHandle = TextView(context).apply {
+            contentDescription = context.getString(R.string.rt_overlay_action_expand)
+            visibility = View.GONE
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { toggleCollapsed() }
+        }
+        shell.addView(
+            container,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+            ),
+        )
+        shell.addView(
+            sideHandle,
+            FrameLayout.LayoutParams(dp(COLLAPSED_TOUCH_WIDTH_DP), dp(COLLAPSED_HEIGHT_DP)).apply {
+                gravity = Gravity.CENTER
+            },
+        )
+
+        val params = WindowManager.LayoutParams(
+            expandedWidth,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = dp(12)
+            y = dp(120)
+        }
+
+        shell.setOnTouchListener(dragListener(shell, params))
+        sideHandle.setOnTouchListener(dragListener(shell, params))
+        try {
+            wm.addView(shell, params)
+        } catch (_: SecurityException) {
+            return false
+        } catch (_: WindowManager.BadTokenException) {
+            return false
+        } catch (_: IllegalStateException) {
+            return false
+        }
+        root = shell
+        panel = container
+        headerRow = header
+        collapsedHandle = sideHandle
+        pauseButton = pause
+        openButton = open
+        collapseButton = collapse
+        dot = stateDot
+        lp = params
+        expandedX = params.x
+        expandedY = params.y
+        applyStyleNow()
+        setControlsVisible(true)
+        return true
+    }
+
+    fun hide() {
+        root?.let { runCatching { wm.removeView(it) } }
+        root = null
+        panel = null
+        headerRow = null
+        collapsedHandle = null
+        pauseButton = null
+        openButton = null
+        collapseButton = null
+        dot = null
+        lp = null
+        collapsed = false
+        controlsVisible = false
+    }
+
+    fun setLines(confirmed: String, current: String) {
+        val committed = confirmed.trim()
+        if (committed.isNotEmpty() && committed != lastProcessedConfirmed) {
+            lastProcessedConfirmed = committed
+            committed.split(Regex("(?<=[。！？!?…～])"))
+                .map(String::trim)
+                .filter(String::isNotEmpty)
+                .forEach { sentence ->
+                    subtitleHistory.addLast(sentence)
+                    while (subtitleHistory.size > SUBTITLE_HISTORY_LINES - 1) {
+                        subtitleHistory.removeFirst()
+                    }
+                }
+        }
+        // The live row is never copied into history; finalized lines remain distinct.
+        latestCurrent = current.trim()
+        renderLines()
+    }
+
+    fun setStateColor(colorHex: String) {
+        val color = runCatching { Color.parseColor(colorHex) }
+            .getOrDefault(Color.parseColor("#34C759"))
+        (dot?.background as? GradientDrawable)?.setColor(color)
+    }
+
+    fun maybeReapplyStyle() {
+        if (appliedStyle != StatusBus.styleVersion.get()) applyStyleNow()
+        val isPaused = StatusBus.paused
+        pauseButton?.setImageResource(
+            if (isPaused) R.drawable.ic_overlay_play_24 else R.drawable.ic_overlay_pause_24,
+        )
+        pauseButton?.contentDescription = if (isPaused) {
+            context.getString(R.string.rt_overlay_action_resume)
+        } else {
+            context.getString(R.string.rt_overlay_action_pause)
+        }
+    }
+
+    /** 点面板空白处切换控制条；收起态则整体展开。 */
+    private fun onOverlayTap() {
+        if (collapsed) toggleCollapsed() else setControlsVisible(!controlsVisible)
+    }
+
+    private fun setControlsVisible(visible: Boolean) {
+        controlsVisible = visible
+        val header = headerRow ?: return
+        header.visibility = if (visible && !collapsed) View.VISIBLE else View.GONE
+    }
+
+    private fun togglePause() {
+        context.startService(
+            Intent(context, CaptureService::class.java).setAction(CaptureService.ACTION_TOGGLE_PAUSE),
+        )
+        pauseButton?.postDelayed({ maybeReapplyStyle() }, 80L)
+    }
+
+    private fun openMainApp() {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            // SINGLE_TOP 让已在前台栈顶的实例经 onNewIntent 收到落点并切页，否则意图会被丢弃。
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra(MainActivity.EXTRA_OPEN_SESSION_TAB, sessionMode)
+        }
+        context.startActivity(intent)
+    }
+
+    private fun toggleCollapsed() {
+        val params = lp ?: return
+        val dm = context.resources.displayMetrics
+        if (!collapsed) {
+            expandedX = params.x
+            expandedY = params.y
+            collapsedOnLeft = SubtitleOverlayGeometry.collapseToLeft(
+                currentX = params.x,
+                currentWidth = params.width,
+                displayWidth = dm.widthPixels,
+            )
+            collapsed = true
+        } else {
+            collapsed = false
+            params.x = expandedX
+            params.y = expandedY
+        }
+        applyAppearance()
+        if (!collapsed) setControlsVisible(true)
+        renderLines()
+    }
+
+    private fun renderLines() {
+        // The live karaoke row occupies the bottom slot; two finalized dialogue rows stay above it.
+        val rows = SubtitleOverlayPresentation.visibleRows(
+            pending = emptyList(),
+            history = subtitleHistory.toList(),
+            current = latestCurrent,
+            maxRows = SUBTITLE_HISTORY_LINES,
+        )
+        val firstVisibleRow = SUBTITLE_HISTORY_LINES - rows.size
+        subtitleRows.forEachIndexed { index, view ->
+            val line = rows.getOrNull(index - firstVisibleRow).orEmpty()
+            view.text = line
+            view.setTextColor(
+                if (index == SUBTITLE_HISTORY_LINES - 1 && latestCurrent.isNotEmpty()) {
+                    Color.WHITE
+                } else {
+                    Color.parseColor("#B8C5D6")
+                },
+            )
+            view.visibility = if (line.isEmpty()) View.GONE else View.VISIBLE
+        }
+        if (rows.isEmpty()) {
+            subtitleRows.lastOrNull()?.apply {
+                text = context.getString(R.string.rt_overlay_waiting_subtitles)
+                visibility = View.VISIBLE
+            }
+        }
+    }
+
+    private fun applyStyleNow() {
         appliedStyle = StatusBus.styleVersion.get()
         val font = SettingsStore.fontSizeSp(context).toFloat()
         subtitleRows.forEach { it.textSize = font }
